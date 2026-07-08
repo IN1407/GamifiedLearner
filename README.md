@@ -106,3 +106,5 @@ frontend/
     components/        lesson renderer, quiz/exercise engines, AI Explain, chat, viz, level-up
     pages/             Home, Onboarding, CoursePlayer, Settings
 ```
+## License
+GamifiedLearner is licensed under AGPLv3. Modifications and redistributions of the covered software must remain open source under the terms of the AGPLv3, including applicable source-code obligations for modified versions offered over a network.
