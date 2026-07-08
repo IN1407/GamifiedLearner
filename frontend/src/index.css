@@ -1,0 +1,118 @@
+@import 'tailwindcss';
+@import 'katex/dist/katex.min.css';
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Prose styling for rendered lesson markdown */
+.gl-prose {
+  @apply text-[15px] leading-7 text-slate-800;
+}
+.gl-prose h1 {
+  @apply mt-6 mb-3 text-2xl font-bold text-slate-900;
+}
+.gl-prose h2 {
+  @apply mt-6 mb-2 text-xl font-bold text-slate-900;
+}
+.gl-prose h3 {
+  @apply mt-5 mb-2 text-lg font-semibold text-slate-900;
+}
+.gl-prose h4 {
+  @apply mt-4 mb-1.5 text-base font-semibold text-slate-800;
+}
+.gl-prose p {
+  @apply my-3;
+}
+.gl-prose ul {
+  @apply my-3 list-disc pl-6;
+}
+.gl-prose ol {
+  @apply my-3 list-decimal pl-6;
+}
+.gl-prose li {
+  @apply my-1;
+}
+.gl-prose a {
+  @apply text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-800;
+}
+.gl-prose blockquote {
+  @apply my-3 rounded-r-lg border-l-4 border-indigo-200 bg-indigo-50/60 px-4 py-2 text-slate-700;
+}
+.gl-prose code {
+  @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[13px] text-rose-700;
+}
+.gl-prose pre {
+  @apply my-4 overflow-x-auto rounded-xl bg-slate-900 p-4 text-slate-100;
+}
+.gl-prose pre code {
+  @apply bg-transparent p-0 text-[13px] leading-6 text-slate-100;
+}
+.gl-prose table {
+  @apply my-4 w-full border-collapse text-sm;
+}
+.gl-prose th {
+  @apply border-b-2 border-slate-300 px-3 py-2 text-left font-semibold;
+}
+.gl-prose td {
+  @apply border-b border-slate-200 px-3 py-2 align-top;
+}
+.gl-prose .katex-display {
+  @apply my-4 overflow-x-auto overflow-y-hidden py-1;
+}
+.gl-prose hr {
+  @apply my-6 border-slate-200;
+}
+
+/* Focus visibility for keyboard users */
+:focus-visible {
+  @apply outline-2 outline-offset-2 outline-indigo-500;
+}
+
+/* Level-up celebration */
+@keyframes gl-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes gl-confetti-fall {
+  0% {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(720deg);
+    opacity: 0.6;
+  }
+}
+.gl-pop {
+  animation: gl-pop 0.5s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+}
+.gl-confetti {
+  position: fixed;
+  top: 0;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  animation: gl-confetti-fall linear both;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-pop,
+  .gl-confetti {
+    animation: none;
+  }
+}
