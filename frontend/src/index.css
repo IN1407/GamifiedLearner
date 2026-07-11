@@ -2,28 +2,80 @@
 @import 'katex/dist/katex.min.css';
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
+  /* Dark design tokens */
+  --gl-bg: #0b1120; /* app canvas */
+  --gl-bg-elev: #0f172a; /* elevated surfaces (slate-900) */
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  background-color: var(--gl-bg);
+  @apply text-slate-200 antialiased;
 }
 
-/* Prose styling for rendered lesson markdown */
+/* Native form controls follow the dark scheme; give them dark surfaces too. */
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+input::placeholder,
+textarea::placeholder {
+  @apply text-slate-500;
+}
+
+/* Slim dark scrollbars */
+* {
+  scrollbar-color: #334155 transparent;
+}
+
+/* Range sliders: dark track + indigo thumb (native track renders light) */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: #1e293b;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #6366f1;
+  border: 2px solid #0b1120;
+  cursor: pointer;
+}
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #6366f1;
+  border: 2px solid #0b1120;
+  cursor: pointer;
+}
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: #1e293b;
+}
+
+/* Prose styling for rendered lesson markdown (dark) */
 .gl-prose {
-  @apply text-[15px] leading-7 text-slate-800;
+  @apply text-[15px] leading-7 text-slate-300;
 }
 .gl-prose h1 {
-  @apply mt-6 mb-3 text-2xl font-bold text-slate-900;
+  @apply mt-6 mb-3 text-2xl font-bold text-slate-100;
 }
 .gl-prose h2 {
-  @apply mt-6 mb-2 text-xl font-bold text-slate-900;
+  @apply mt-6 mb-2 text-xl font-bold text-slate-100;
 }
 .gl-prose h3 {
-  @apply mt-5 mb-2 text-lg font-semibold text-slate-900;
+  @apply mt-5 mb-2 text-lg font-semibold text-slate-100;
 }
 .gl-prose h4 {
-  @apply mt-4 mb-1.5 text-base font-semibold text-slate-800;
+  @apply mt-4 mb-1.5 text-base font-semibold text-slate-200;
 }
 .gl-prose p {
   @apply my-3;
@@ -38,13 +90,13 @@ body {
   @apply my-1;
 }
 .gl-prose a {
-  @apply text-indigo-600 underline decoration-indigo-300 underline-offset-2 hover:text-indigo-800;
+  @apply text-indigo-300 underline decoration-indigo-500/50 underline-offset-2 hover:text-indigo-200;
 }
 .gl-prose blockquote {
-  @apply my-3 rounded-r-lg border-l-4 border-indigo-200 bg-indigo-50/60 px-4 py-2 text-slate-700;
+  @apply my-3 rounded-r-lg border-l-4 border-indigo-500/40 bg-indigo-500/10 px-4 py-2 text-slate-300;
 }
 .gl-prose code {
-  @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[13px] text-rose-700;
+  @apply rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[13px] text-rose-300;
 }
 .gl-prose pre {
   @apply my-4 overflow-x-auto rounded-xl bg-slate-900 p-4 text-slate-100;
@@ -56,21 +108,21 @@ body {
   @apply my-4 w-full border-collapse text-sm;
 }
 .gl-prose th {
-  @apply border-b-2 border-slate-300 px-3 py-2 text-left font-semibold;
+  @apply border-b-2 border-slate-700 px-3 py-2 text-left font-semibold;
 }
 .gl-prose td {
-  @apply border-b border-slate-200 px-3 py-2 align-top;
+  @apply border-b border-slate-800 px-3 py-2 align-top;
 }
 .gl-prose .katex-display {
   @apply my-4 overflow-x-auto overflow-y-hidden py-1;
 }
 .gl-prose hr {
-  @apply my-6 border-slate-200;
+  @apply my-6 border-slate-800;
 }
 
 /* Focus visibility for keyboard users */
 :focus-visible {
-  @apply outline-2 outline-offset-2 outline-indigo-500;
+  @apply outline-2 outline-offset-2 outline-indigo-400;
 }
 
 /* Level-up celebration */

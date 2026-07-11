@@ -8,6 +8,7 @@ import {
   moduleMasteryPct,
 } from '../content'
 import { progressKey } from '../content/types'
+import { newlyEarnedMilestone } from '../content/milestones'
 import { useStore, useStreak, useXp } from '../state/useStore'
 import { levelForXp } from '../lib/gamification'
 import LessonView from '../components/LessonView'
@@ -27,7 +28,11 @@ export default function CoursePlayer() {
   const [navOpen, setNavOpen] = useState(false)
   const [lessonXp, setLessonXp] = useState(0)
   const [interactiveDone, setInteractiveDone] = useState(true)
-  const [levelUp, setLevelUp] = useState<{ moduleTitle: string; earned: number } | null>(null)
+  const [levelUp, setLevelUp] = useState<{
+    moduleTitle: string
+    earned: number
+    status: { title: string; subtitle: string; icon: string } | null
+  } | null>(null)
 
   const course = courseId ? getCourse(courseId) : undefined
 
@@ -69,6 +74,11 @@ export default function CoursePlayer() {
   const finishLesson = async () => {
     if (!canComplete) return
     const earned = lessonXp + completionBonus
+    // Detect a newly-earned milestone by comparing progress before/after this
+    // completion (derivation is pure, so we can simulate the "after" map).
+    const key = progressKey(course.id, module.id, lesson.id)
+    const after = { ...progress, [key]: progress[key] ?? ({ lessonId: key } as (typeof progress)[string]) }
+    const earnedMilestone = newlyEarnedMilestone(progress, after)
     await completeLesson({
       courseId: course.id,
       moduleId: module.id,
@@ -76,8 +86,14 @@ export default function CoursePlayer() {
       xp: earned,
       isCheckpoint: lesson.kind === 'checkpoint',
     })
-    if (lesson.kind === 'checkpoint') {
-      setLevelUp({ moduleTitle: module.title, earned })
+    if (lesson.kind === 'checkpoint' || earnedMilestone) {
+      setLevelUp({
+        moduleTitle: module.title,
+        earned,
+        status: earnedMilestone
+          ? { title: earnedMilestone.title, subtitle: earnedMilestone.subtitle, icon: earnedMilestone.icon }
+          : null,
+      })
     } else if (next) {
       navigate(`/course/${course.id}/${next.module.id}/${next.lesson.id}`)
       window.scrollTo({ top: 0 })
@@ -97,20 +113,20 @@ export default function CoursePlayer() {
   return (
     <div className="min-h-screen">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-800 bg-slate-900/80 px-4 py-3 backdrop-blur">
         <button
           onClick={() => setNavOpen((v) => !v)}
           aria-label="Toggle lesson navigation"
           aria-expanded={navOpen}
-          className="rounded-lg border border-slate-300 p-2 text-sm lg:hidden"
+          className="rounded-lg border border-slate-700 p-2 text-sm lg:hidden"
         >
           ☰
         </button>
-        <Link to="/" className="text-sm font-bold text-indigo-700 hover:underline">
+        <Link to="/" className="text-sm font-bold text-indigo-300 hover:underline">
           ← Home
         </Link>
-        <span className="hidden truncate text-sm font-semibold text-slate-700 sm:block">{course.title}</span>
-        <span className="ml-auto flex items-center gap-3 text-sm font-semibold text-slate-600">
+        <span className="hidden truncate text-sm font-semibold text-slate-200 sm:block">{course.title}</span>
+        <span className="ml-auto flex items-center gap-3 text-sm font-semibold text-slate-300">
           <span title="Streak">🔥 {streak.streakWeeks}w</span>
           <span title="Total XP">⭐ {xp.toLocaleString()}</span>
         </span>
@@ -122,7 +138,7 @@ export default function CoursePlayer() {
           aria-label="Course outline"
           className={`${
             navOpen ? 'block' : 'hidden'
-          } fixed inset-y-0 left-0 z-20 w-72 overflow-y-auto border-r border-slate-200 bg-white p-4 pt-16 lg:static lg:block lg:pt-4`}
+          } fixed inset-y-0 left-0 z-20 w-72 overflow-y-auto border-r border-slate-800 bg-slate-900 p-4 pt-16 lg:static lg:block lg:pt-4`}
         >
           {course.modules.map((m, mi) => {
             const mastery = moduleMasteryPct(course, m, progress)
@@ -155,8 +171,8 @@ export default function CoursePlayer() {
                             aria-current={isCurrent ? 'page' : undefined}
                             className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
                               isCurrent
-                                ? 'bg-indigo-100 font-semibold text-indigo-800'
-                                : 'text-slate-600 hover:bg-slate-50'
+                                ? 'bg-indigo-500/20 font-semibold text-indigo-200'
+                                : 'text-slate-300 hover:bg-slate-800/60'
                             }`}
                           >
                             <span aria-hidden>{st === 'completed' ? '✅' : l.kind === 'checkpoint' ? '🏁' : '📖'}</span>
@@ -174,13 +190,13 @@ export default function CoursePlayer() {
 
         {/* Main pane */}
         <main className="min-w-0 flex-1 px-4 py-6 sm:px-8">
-          <p className="text-xs font-semibold tracking-wide text-indigo-500 uppercase">
+          <p className="text-xs font-semibold tracking-wide text-indigo-400 uppercase">
             {module.title} {lesson.kind === 'checkpoint' && '· checkpoint'}
           </p>
-          <h1 className="mt-1 mb-4 text-2xl font-extrabold text-slate-900 sm:text-3xl">{lesson.title}</h1>
+          <h1 className="mt-1 mb-4 text-2xl font-extrabold text-slate-100 sm:text-3xl">{lesson.title}</h1>
 
           {locked ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-200">
               <p className="font-semibold">🔒 This lesson is locked.</p>
               <p className="mt-1 text-sm">Complete the earlier lessons first — the course builds on itself.</p>
               <Link
@@ -204,11 +220,11 @@ export default function CoursePlayer() {
                 onProgress={onProgress}
               />
 
-              <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5">
+              <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-5">
                 {prev ? (
                   <Link
                     to={`/course/${course.id}/${prev.module.id}/${prev.lesson.id}`}
-                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+                    className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800/60"
                   >
                     ← {prev.lesson.title}
                   </Link>
@@ -245,18 +261,18 @@ export default function CoursePlayer() {
         </main>
 
         {/* Right rail: progress */}
-        <aside className="hidden w-64 shrink-0 border-l border-slate-200 p-4 xl:block" aria-label="Progress">
+        <aside className="hidden w-64 shrink-0 border-l border-slate-800 p-4 xl:block" aria-label="Progress">
           <div className="sticky top-16 space-y-4">
             <RailCard title="This module">
               <Bar pct={moduleMasteryPct(course, module, progress)} />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-400">
                 {module.lessons.filter((l) => progress[progressKey(course.id, module.id, l.id)]).length}/
                 {module.lessons.length} lessons · checkpoint at the end
               </p>
             </RailCard>
             <RailCard title="Streak">
-              <p className="text-2xl font-extrabold text-slate-900">🔥 {streak.streakWeeks}w</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-2xl font-extrabold text-slate-100">🔥 {streak.streakWeeks}w</p>
+              <p className="text-xs text-slate-400">
                 {streak.thisWeekCount}/{streak.commitment} lessons this week
                 {streak.thisWeekMet ? ' — commitment met ✓' : ''}
               </p>
@@ -279,6 +295,7 @@ export default function CoursePlayer() {
           totalXp={xp}
           streakWeeks={streak.streakWeeks}
           earnedXp={levelUp.earned}
+          status={levelUp.status}
           onClose={closeLevelUp}
         />
       )}
@@ -288,7 +305,7 @@ export default function CoursePlayer() {
 
 function RailCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm">
       <p className="mb-2 text-xs font-bold tracking-wide text-slate-400 uppercase">{title}</p>
       {children}
     </div>
@@ -298,7 +315,7 @@ function RailCard({ title, children }: { title: string; children: React.ReactNod
 function Bar({ pct }: { pct: number }) {
   return (
     <div
-      className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100"
+      className="mt-1 h-2 overflow-hidden rounded-full bg-slate-800"
       role="progressbar"
       aria-valuenow={pct}
       aria-valuemin={0}
@@ -313,8 +330,8 @@ function LevelMini({ xp }: { xp: number }) {
   const { level, intoLevel, needed } = levelForXp(xp)
   return (
     <>
-      <p className="text-2xl font-extrabold text-slate-900">Lv {level}</p>
-      <p className="text-xs text-slate-500">
+      <p className="text-2xl font-extrabold text-slate-100">Lv {level}</p>
+      <p className="text-xs text-slate-400">
         {intoLevel}/{needed} XP to level {level + 1}
       </p>
       <Bar pct={Math.round((intoLevel / needed) * 100)} />

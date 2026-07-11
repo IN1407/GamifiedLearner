@@ -155,7 +155,8 @@ export async function aiGrade(
     rubric: string
     submission: string
     kind: 'prompt' | 'code'
-    executionResults?: string
+    /** static syntax/structure analysis passed as evidence only (never a verdict) */
+    codeEvidence?: string
   },
 ): Promise<GradeResult> {
   const auth = await authFields(config)
@@ -167,25 +168,64 @@ export async function aiGrade(
       rubric: payload.rubric,
       submission: payload.submission,
       kind: payload.kind,
-      execution_results: payload.executionResults ?? null,
+      code_evidence: payload.codeEvidence ?? null,
     }),
   })
 }
 
-export interface ExecuteResult {
-  ok: boolean
-  stdout: string
-  results: { name: string; passed: boolean; error: string | null }[]
-  all_passed: boolean
-  error: string | null
+export interface VerifyCheck {
+  label: string
+  passed: boolean
+  detail: string
 }
 
-export function executeCode(
+export interface VerifyResult {
+  valid: boolean
+  error: { message: string; lineno: number | null; offset: number | null; text: string | null } | null
+  facts: {
+    functions: string[]
+    classes: string[]
+    imports: string[]
+    constructs: string[]
+    num_statements: number
+  }
+  checks: VerifyCheck[]
+  all_checks_passed: boolean
+  changed: boolean
+  /** deterministic completion signal: valid AND all checks pass AND changed. NOT a correctness claim. */
+  passed: boolean
+  summary: string
+}
+
+/** Structural requirements an exercise may declare to override starter-derived checks. */
+export interface CodeRequirements {
+  mustDefine?: { name: string; minArgs?: number }[]
+  mustUse?: ('loop' | 'comprehension' | 'conditional' | 'try' | 'with' | 'return')[]
+  mustNotImport?: string[]
+}
+
+/**
+ * Statically verify learner code. The backend NEVER executes it — it parses the
+ * AST and runs structural checks only. Correctness is judged separately by AI.
+ */
+export function verifyCode(
   code: string,
-  tests: { name: string; code: string }[],
-): Promise<ExecuteResult> {
-  return request<ExecuteResult>('/api/execute', {
+  starterCode: string,
+  requirements?: CodeRequirements,
+): Promise<VerifyResult> {
+  const body: Record<string, unknown> = { code, starter_code: starterCode }
+  if (requirements) {
+    body.requirements = {
+      must_define: (requirements.mustDefine ?? []).map((m) => ({
+        name: m.name,
+        min_args: m.minArgs ?? 0,
+      })),
+      must_use: requirements.mustUse ?? [],
+      must_not_import: requirements.mustNotImport ?? [],
+    }
+  }
+  return request<VerifyResult>('/api/verify', {
     method: 'POST',
-    body: JSON.stringify({ code, tests }),
+    body: JSON.stringify(body),
   })
 }

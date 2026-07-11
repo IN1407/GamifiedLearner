@@ -1,6 +1,6 @@
 # GamifiedLearner
 
-A gamified e-learning platform that takes you from your first line of Python to reading modern attention papers — then teaches you to *use* AI fluently. Duolingo-style streaks and XP, quizzes with AI-explained mistakes, real code exercises graded by actually running them, interactive visualizations, and free-text exercises graded by your own connected AI model.
+A gamified e-learning platform that takes you from your first line of Python to reading modern attention papers — then teaches you to *use* AI fluently. Duolingo-style streaks and XP, unlockable milestone **statuses** (Pythonista → Backend Wrangler → Attention Alchemist → Neural Architect → Prompt Whisperer → AI Power User), quizzes with AI-explained mistakes, code exercises **verified statically (your code is never executed) and reviewed by AI**, interactive visualizations, and free-text exercises graded by your own connected AI model — all in a sleek dark UI.
 
 Two courses:
 
@@ -11,7 +11,7 @@ Two courses:
 
 You need **Python 3.11+** and **Node 20+**.
 
-### 1. Backend (FastAPI proxy + code runner)
+### 1. Backend (FastAPI proxy + static code verifier)
 
 ```bash
 cd backend
@@ -45,7 +45,7 @@ Serve `frontend/dist` as static files behind the same host/origin as the backend
 | Layer | Choice | Notes |
 |---|---|---|
 | Frontend | React + TypeScript + Vite + Tailwind v4 | Component-driven; `react-markdown` + KaTeX for lessons; canvas for the share card. |
-| Backend | FastAPI (Python) | The platform teaches FastAPI, so it dogfoods it. Stateless AI proxy + deterministic code runner. |
+| Backend | FastAPI (Python) | The platform teaches FastAPI, so it dogfoods it. Stateless AI proxy + static (never-executing) code verifier. |
 | Persistence | Browser **IndexedDB** via a typed data-access layer (`idb`) | Structured stores + indexes for progress and the real-dated event log that streaks are computed from. No accounts, no server DB. |
 | Provider adapters | One `LLMProvider` interface, one file per vendor | Adding a provider = one new adapter + one registry line. |
 
@@ -66,22 +66,22 @@ Both prompts live in `backend/app/prompts.py` and are intentionally separate.
 
 - **API keys never touch the server's disk or logs.** The browser encrypts the key with **AES-GCM** (a non-extractable WebCrypto key held in IndexedDB) before storing it, decrypts it in memory only to send a request, and the FastAPI backend forwards it to *only the chosen provider* — never a third party. It's clearable from Settings.
   - *Tradeoff chosen (documented per brief):* the encrypted key lives client-side and rides along on each AI request over HTTPS, rather than being held in a server session. Upside: no key ever persists outside the user's browser, and a backend restart loses nothing. Downside: the key is in each request payload (over HTTPS to your own origin). The client-side encryption protects against casual IndexedDB inspection, not against code running in the same origin — see the note in `frontend/src/lib/crypto.ts`.
-- **Code exercises run in a subprocess sandbox** (`backend/app/runner.py`): `python -I` isolated mode, a temp working directory, a wall-clock timeout, and (POSIX) CPU/memory/file-size rlimits. This is a **local-first** app — the backend runs on the learner's own machine — so the sandbox guards against accidents (infinite loops, runaway allocations, stray writes), not a hostile multi-tenant attacker. Correctness is decided here deterministically; the AI only ever gives qualitative style feedback.
+- **Learner code is never executed.** Code exercises are verified **statically** (`backend/app/syntax_check.py`, `POST /api/verify`): the submission is parsed into an AST with `ast.parse` — which does not run, import, or evaluate anything — and inspected for syntax validity and required structure (are the expected functions actually implemented? are the required constructs used?). Syntax validity is only a *supporting* signal: valid Python can still be wrong. Semantic correctness and style are judged by the connected AI, which receives the static analysis strictly as **evidence** (it is instructed never to pass code merely because it parses). The old executing runner (`backend/app/runner.py`) is retained **only** as a CI safety net that runs the *authors'* reference solutions — it is not imported by the API and no learner input can reach it.
 
 ## Testing
 
 ```bash
-# Backend: unit + API + every code exercise validated end-to-end (34 reference solutions run through the real runner)
-cd backend && .venv/bin/python -m pytest tests/ -q      # 57 tests
+# Backend: unit + API + static syntax verification (incl. proof learner code is never executed)
+cd backend && .venv/bin/python -m pytest tests/ -q      # 74 tests
 
-# Frontend: gamification math, content integrity, share-card rendering
-cd frontend && npm test                                  # 29 tests
+# Frontend: gamification math, content integrity, share-card rendering, API client
+cd frontend && npm test                                  # 43 tests
 
 # End-to-end (drives the real app in Chromium; needs both servers running)
 cd frontend && node e2e-smoke.mjs                        # 14 checks
 ```
 
-The backend suite includes `test_exercise_solutions.py`, which runs a known-correct reference solution for **every** code exercise through the actual runner — so no exercise can ship with internally inconsistent tests.
+The backend suite includes `test_exercise_solutions.py`, which runs a known-correct **author** reference solution for **every** code exercise through the CI-only runner — so no exercise can ship with internally inconsistent tests. (Learner submissions never touch that runner; they are verified statically.) `test_syntax_check.py` and `test_api.py` include tests proving learner code is never executed (a hostile submission that would write a sentinel file or loop forever returns instantly with no side effects).
 
 ## Accessibility & responsiveness
 
@@ -92,10 +92,11 @@ Keyboard-navigable (radio groups, focus-visible outlines), ARIA labels on intera
 ```
 backend/
   app/
-    main.py            FastAPI app: /api/providers, /api/ai/{explain,chat,grade}, /api/execute
+    main.py            FastAPI app: /api/providers, /api/ai/{explain,chat,grade}, /api/verify
     providers/         LLMProvider interface + one adapter per vendor + demo
     prompts.py         the two AI-role system prompts
-    runner.py          deterministic sandboxed code-exercise runner
+    syntax_check.py    static (never-executing) AST verification of learner code
+    runner.py          CI-only author-solution runner (not on any request path)
     schemas.py         Pydantic request/response models
   tests/               pytest suite (incl. every-exercise-is-solvable check)
 frontend/

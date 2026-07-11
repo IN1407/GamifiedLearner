@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { CodeExercise } from '../content/types'
-import { aiGrade, executeCode, type ExecuteResult } from '../lib/api'
+import { aiGrade, verifyCode, type VerifyResult } from '../lib/api'
 import { useStore } from '../state/useStore'
 import Markdown from './Markdown'
 import CodeEditor from './CodeEditor'
@@ -9,9 +9,11 @@ import GradeCard from './GradeCard'
 import type { GradeResult } from '../lib/api'
 
 /**
- * Code exercise: correctness is decided by deterministic server-side tests.
- * The connected AI is only consulted (optionally, after tests pass) for
- * qualitative style feedback — never for pass/fail.
+ * Code exercise. Learner code is verified STATICALLY — it is never executed.
+ * The backend parses the AST, checks the required structure (functions
+ * implemented, constructs used), and returns a pass/fail completion signal plus
+ * evidence. Semantic correctness/quality is judged by the connected AI, which
+ * receives the static analysis as evidence only (valid syntax ≠ correct code).
  */
 export default function ExerciseBlock({
   exercise,
@@ -24,34 +26,36 @@ export default function ExerciseBlock({
 }) {
   const aiConfig = useStore((s) => s.aiConfig)
   const [code, setCode] = useState(exercise.starterCode)
-  const [running, setRunning] = useState(false)
-  const [result, setResult] = useState<ExecuteResult | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [result, setResult] = useState<VerifyResult | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [passed, setPassed] = useState(false)
   const [grade, setGrade] = useState<GradeResult | null>(null)
   const [grading, setGrading] = useState(false)
   const [gradeError, setGradeError] = useState<unknown>(null)
 
-  const run = async () => {
-    setRunning(true)
+  const xp = 20 * exercise.difficulty
+
+  const check = async () => {
+    setChecking(true)
     setError(null)
     setResult(null)
     try {
-      const res = await executeCode(code, exercise.tests)
+      const res = await verifyCode(code, exercise.starterCode, exercise.requirements)
       setResult(res)
-      if (res.all_passed && !passed) {
+      if (res.passed && !passed) {
         setPassed(true)
-        onXpChange(20 * exercise.difficulty)
+        onXpChange(xp)
         onCompleteChange(true)
       }
     } catch (e) {
       setError(e)
     } finally {
-      setRunning(false)
+      setChecking(false)
     }
   }
 
-  const askStyleFeedback = async () => {
+  const askFeedback = async () => {
     if (!aiConfig || !result) return
     setGrading(true)
     setGradeError(null)
@@ -60,10 +64,10 @@ export default function ExerciseBlock({
         task: exercise.instructions,
         rubric:
           exercise.rubric ??
-          'Clarity: readable names and structure. Idiomatic Python: uses appropriate built-ins/idioms. Simplicity: no unnecessary complexity. Correctness was already verified by tests — do not judge it.',
+          'Judge correctness against the task by reasoning about the logic (the platform does not run code). Then assess clarity, idiomatic Python, and simplicity. Do not pass code merely because it is syntactically valid.',
         submission: code,
         kind: 'code',
-        executionResults: JSON.stringify(result.results),
+        codeEvidence: result.summary,
       })
       setGrade(g)
     } catch (e) {
@@ -76,14 +80,18 @@ export default function ExerciseBlock({
   return (
     <section
       aria-label={`Exercise: ${exercise.title}`}
-      className="my-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+      className="my-6 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
     >
-      <h3 className="mb-1 flex items-center gap-2 text-lg font-bold text-slate-900">
+      <h3 className="mb-1 flex items-center gap-2 text-lg font-bold text-slate-100">
         <span aria-hidden>⚡</span> {exercise.title}
-        {passed && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Passed</span>}
+        {passed && (
+          <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300">
+            Passed
+          </span>
+        )}
       </h3>
       <p className="mb-3 text-xs text-slate-400">
-        Code exercise · {20 * exercise.difficulty} XP · graded by real test runs, not AI
+        Code exercise · {xp} XP · checked statically (your code is never executed) + optional AI review
       </p>
       <Markdown md={exercise.instructions} />
       <div className="mt-4">
@@ -91,76 +99,89 @@ export default function ExerciseBlock({
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
-          onClick={run}
-          disabled={running}
+          onClick={check}
+          disabled={checking}
           className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
         >
-          {running ? (
+          {checking ? (
             <>
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-300 border-t-white" />
-              Running tests…
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-500/40 border-t-white" />
+              Checking…
             </>
           ) : (
-            <>▶ Run tests</>
+            <>✓ Check my code</>
           )}
         </button>
         <button
           onClick={() => setCode(exercise.starterCode)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+          className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800/60"
         >
           Reset code
         </button>
         {passed && aiConfig && !grade && (
           <button
-            onClick={askStyleFeedback}
+            onClick={askFeedback}
             disabled={grading}
-            className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+            className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-sm font-medium text-indigo-300 hover:bg-indigo-500/20 disabled:opacity-60"
           >
-            {grading ? 'Getting feedback…' : '✨ AI style feedback'}
+            {grading ? 'Reviewing…' : '✨ AI review my solution'}
           </button>
         )}
       </div>
 
-      <ErrorBanner error={error} onRetry={run} onDismiss={() => setError(null)} />
+      <ErrorBanner error={error} onRetry={check} onDismiss={() => setError(null)} />
 
       {result && (
         <div className="mt-4 space-y-2" aria-live="polite">
-          {result.error && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 font-mono text-xs whitespace-pre-wrap text-amber-900">
-              {result.error}
+          {!result.valid && result.error && (
+            <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 font-mono text-xs whitespace-pre-wrap text-rose-200">
+              <span className="font-semibold">Syntax error</span>
+              {result.error.lineno != null && <span> on line {result.error.lineno}</span>}:{' '}
+              {result.error.message}
+              {result.error.text && <div className="mt-1 opacity-80">{result.error.text.trim()}</div>}
+              <div className="mt-1 text-[11px] text-rose-300 not-italic">
+                (Your code was parsed, not run — fix the syntax and check again.)
+              </div>
             </div>
           )}
-          {result.stdout && (
-            <details className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs" open={!result.all_passed}>
-              <summary className="cursor-pointer font-semibold text-slate-600">Program output</summary>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap font-mono text-slate-700">{result.stdout}</pre>
-            </details>
+
+          {result.valid && result.checks.length > 0 && (
+            <ul className="space-y-1.5">
+              {result.checks.map((c) => (
+                <li
+                  key={c.label}
+                  className={`rounded-xl border p-3 text-sm ${
+                    c.passed
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                      : 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                  }`}
+                >
+                  <span className="font-medium">
+                    {c.passed ? '✓' : '•'} {c.label}
+                  </span>
+                  {!c.passed && c.detail && <p className="mt-1 text-xs">{c.detail}</p>}
+                </li>
+              ))}
+            </ul>
           )}
-          <ul className="space-y-1.5">
-            {result.results.map((t) => (
-              <li
-                key={t.name}
-                className={`rounded-xl border p-3 text-sm ${
-                  t.passed ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-rose-200 bg-rose-50 text-rose-800'
-                }`}
-              >
-                <span className="font-medium">
-                  {t.passed ? '✓' : '✗'} {t.name}
-                </span>
-                {t.error && <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs">{t.error}</pre>}
-              </li>
-            ))}
-          </ul>
-          {result.all_passed && (
-            <p className="text-sm font-semibold text-emerald-700">
-              All tests passed! +{20 * exercise.difficulty} XP
+
+          {result.valid && !result.passed && result.all_checks_passed && !result.changed && (
+            <p className="text-sm text-amber-300">Edit the starter code with your own solution, then check again.</p>
+          )}
+
+          {result.passed && (
+            <p className="text-sm font-semibold text-emerald-300">
+              Structure checks passed — +{xp} XP.{' '}
+              {aiConfig
+                ? 'Run “AI review my solution” to check your logic and style.'
+                : 'Connect an AI provider in Settings for a correctness & style review.'}
             </p>
           )}
         </div>
       )}
 
-      <ErrorBanner error={gradeError} onRetry={askStyleFeedback} onDismiss={() => setGradeError(null)} />
-      {grade && <GradeCard grade={grade} title="AI style feedback (advisory — your XP is already earned)" />}
+      <ErrorBanner error={gradeError} onRetry={askFeedback} onDismiss={() => setGradeError(null)} />
+      {grade && <GradeCard grade={grade} title="AI review (advisory — your XP is already earned)" />}
     </section>
   )
 }

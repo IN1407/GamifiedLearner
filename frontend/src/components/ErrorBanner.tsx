@@ -27,11 +27,11 @@ export default function ErrorBanner({
   return (
     <div
       role="alert"
-      className="my-3 flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 sm:flex-row sm:items-start sm:justify-between"
+      className="my-3 flex flex-col gap-2 rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-100 sm:flex-row sm:items-start sm:justify-between"
     >
       <div>
         <p className="font-semibold">{title}</p>
-        <p className="mt-0.5 text-red-800">{message}</p>
+        <p className="mt-0.5 text-red-300">{message}</p>
       </div>
       <div className="flex shrink-0 gap-2">
         {onRetry && (
@@ -46,7 +46,7 @@ export default function ErrorBanner({
           <button
             onClick={onDismiss}
             aria-label="Dismiss error"
-            className="rounded-lg border border-red-300 px-3 py-1.5 font-medium text-red-700 hover:bg-red-100"
+            className="rounded-lg border border-red-500/40 px-3 py-1.5 font-medium text-red-300 hover:bg-red-500/20"
           >
             Dismiss
           </button>

@@ -16,9 +16,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from . import prompts, schemas
+from . import prompts, schemas, syntax_check
 from .providers import KEYLESS, PROVIDERS, ChatMessage, ProviderError, get_provider
-from .runner import run_exercise
 
 app = FastAPI(title="GamifiedLearner API", docs_url="/api/docs", openapi_url="/api/openapi.json")
 
@@ -161,7 +160,7 @@ async def ai_grade(req: schemas.GradeRequest):
             "user",
             prompts.build_grade_user_message(
                 req.task[:4000], req.rubric[:4000], req.submission[:12000],
-                req.kind, req.execution_results,
+                req.kind, req.code_evidence,
             ),
         ),
     ]
@@ -169,7 +168,31 @@ async def ai_grade(req: schemas.GradeRequest):
     return _parse_grade(text)
 
 
-@app.post("/api/execute", response_model=schemas.ExecuteResponse)
-async def execute(req: schemas.ExecuteRequest):
-    result = run_exercise(req.code, [t.model_dump() for t in req.tests])
-    return schemas.ExecuteResponse(**result.to_dict())
+@app.post("/api/verify", response_model=schemas.VerifyResponse)
+async def verify(req: schemas.VerifyRequest):
+    """Statically verify learner Python. Learner code is NEVER executed — the
+    submission is only parsed into an AST and inspected (see syntax_check.py)."""
+    requirement = None
+    if req.requirements is not None:
+        requirement = syntax_check.Requirement(
+            must_define=[(m.name, m.min_args) for m in req.requirements.must_define],
+            must_use=list(req.requirements.must_use),
+            must_not_import=list(req.requirements.must_not_import),
+        )
+    result = syntax_check.verify(req.code, req.starter_code, requirement)
+    return schemas.VerifyResponse(
+        valid=result.valid,
+        error=schemas.SyntaxErrorOut(**vars(result.error)) if result.error else None,
+        facts=schemas.SyntaxFactsOut(
+            functions=[f.name for f in result.facts.functions],
+            classes=result.facts.classes,
+            imports=result.facts.imports,
+            constructs=result.facts.constructs,
+            num_statements=result.facts.num_statements,
+        ),
+        checks=[schemas.VerifyCheckOut(label=c.label, passed=c.passed, detail=c.detail) for c in result.checks],
+        all_checks_passed=result.all_checks_passed,
+        changed=result.changed,
+        passed=result.passed,
+        summary=result.summary,
+    )

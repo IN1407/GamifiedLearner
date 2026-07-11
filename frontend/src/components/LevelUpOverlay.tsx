@@ -11,6 +11,7 @@ export default function LevelUpOverlay({
   totalXp,
   streakWeeks,
   earnedXp,
+  status,
   onClose,
 }: {
   courseTitle: string
@@ -19,6 +20,8 @@ export default function LevelUpOverlay({
   totalXp: number
   streakWeeks: number
   earnedXp: number
+  /** milestone status newly earned at this checkpoint, if any */
+  status?: { title: string; subtitle: string; icon: string } | null
   onClose: () => void
 }) {
   const [shareState, setShareState] = useState<'idle' | 'working' | 'shared' | 'downloaded' | 'failed'>('idle')
@@ -43,7 +46,15 @@ export default function LevelUpOverlay({
   const share = async () => {
     setShareState('working')
     try {
-      const blob = await renderShareCard({ courseTitle, moduleTitle, level, totalXp, streakWeeks })
+      const blob = await renderShareCard({
+        courseTitle,
+        moduleTitle,
+        level,
+        totalXp,
+        streakWeeks,
+        statusTitle: status?.title,
+        statusIcon: status?.icon,
+      })
       const result = await shareOrDownload(blob, 'gamifiedlearner-levelup.png')
       setShareState(result)
     } catch {
@@ -70,6 +81,19 @@ export default function LevelUpOverlay({
           Checkpoint cleared: <span className="font-semibold text-white">{moduleTitle}</span>
         </p>
         <p className="text-sm text-indigo-200">{courseTitle}</p>
+
+        {status && (
+          <div className="gl-pop mt-5 rounded-2xl border border-white/25 bg-white/15 p-4">
+            <p className="text-xs font-bold tracking-widest text-amber-200 uppercase">Status unlocked</p>
+            <p className="mt-0.5 text-2xl font-extrabold">
+              <span aria-hidden className="mr-1">
+                {status.icon}
+              </span>
+              {status.title}
+            </p>
+            <p className="mt-0.5 text-sm text-indigo-100">{status.subtitle}</p>
+          </div>
+        )}
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <Stat value={String(level)} label="Level" />

@@ -53,7 +53,10 @@ class GradeRequest(ProviderAuth):
     rubric: str
     submission: str
     kind: str = "prompt"  # "prompt" | "code"
-    execution_results: str | None = None
+    # Static syntax/structure analysis passed to the grader as CONTEXTUAL
+    # EVIDENCE ONLY. Learner code is never executed; this is not a correctness
+    # verdict. (Field name kept generic on purpose.)
+    code_evidence: str | None = None
 
 
 class GradeResponse(BaseModel):
@@ -66,28 +69,59 @@ class GradeResponse(BaseModel):
     raw: str = ""  # fallback when the model didn't return valid JSON
 
 
-class TestCase(BaseModel):
+class MustDefine(BaseModel):
     name: str
+    min_args: int = 0
+
+
+class VerifyRequirements(BaseModel):
+    must_define: list[MustDefine] = Field(default_factory=list)
+    must_use: list[str] = Field(default_factory=list)
+    must_not_import: list[str] = Field(default_factory=list)
+
+
+class VerifyRequest(BaseModel):
+    """Request to statically verify learner Python. Code is NEVER executed."""
+
     code: str
+    starter_code: str = ""
+    # When omitted, requirements are derived from the starter's function stubs.
+    requirements: VerifyRequirements | None = None
 
 
-class ExecuteRequest(BaseModel):
-    code: str
-    tests: list[TestCase]
+class SyntaxErrorOut(BaseModel):
+    message: str
+    lineno: int | None = None
+    offset: int | None = None
+    text: str | None = None
 
 
-class TestResultOut(BaseModel):
-    name: str
+class VerifyCheckOut(BaseModel):
+    label: str
     passed: bool
-    error: str | None = None
+    detail: str = ""
 
 
-class ExecuteResponse(BaseModel):
-    ok: bool
-    stdout: str
-    results: list[TestResultOut]
-    all_passed: bool
-    error: str | None = None
+class SyntaxFactsOut(BaseModel):
+    functions: list[str] = Field(default_factory=list)
+    classes: list[str] = Field(default_factory=list)
+    imports: list[str] = Field(default_factory=list)
+    constructs: list[str] = Field(default_factory=list)
+    num_statements: int = 0
+
+
+class VerifyResponse(BaseModel):
+    valid: bool
+    error: SyntaxErrorOut | None = None
+    facts: SyntaxFactsOut = Field(default_factory=SyntaxFactsOut)
+    checks: list[VerifyCheckOut] = Field(default_factory=list)
+    all_checks_passed: bool = False
+    changed: bool = False
+    # passed == valid AND all structural checks pass AND changed from starter.
+    # This is the deterministic completion signal; it is NOT a claim that the
+    # code is semantically correct.
+    passed: bool = False
+    summary: str = ""
 
 
 class ProviderInfo(BaseModel):

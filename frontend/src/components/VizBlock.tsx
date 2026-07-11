@@ -10,14 +10,14 @@ export default function VizBlock({ viz, caption }: { viz: VizKind; caption?: str
     <figure className="my-6">
       <Suspense
         fallback={
-          <div className="h-48 animate-pulse rounded-2xl bg-slate-100" role="status" aria-label="Loading visualization" />
+          <div className="h-48 animate-pulse rounded-2xl bg-slate-800" role="status" aria-label="Loading visualization" />
         }
       >
         {viz === 'attention' && <AttentionViz />}
         {viz === 'gradientDescent' && <GradientDescentViz />}
         {viz === 'softmax' && <SoftmaxViz />}
       </Suspense>
-      {caption && <figcaption className="mt-2 text-center text-xs text-slate-500">{caption}</figcaption>}
+      {caption && <figcaption className="mt-2 text-center text-xs text-slate-400">{caption}</figcaption>}
     </figure>
   )
 }

@@ -39,7 +39,7 @@ export default function CodeEditor({
     <div className="flex overflow-hidden rounded-xl border border-slate-700 bg-slate-900 font-mono text-[13px] leading-6">
       <div
         aria-hidden
-        className="select-none border-r border-slate-700/60 bg-slate-950/50 px-2 py-3 text-right text-slate-600"
+        className="select-none border-r border-slate-700/60 bg-slate-950/50 px-2 py-3 text-right text-slate-300"
       >
         {Array.from({ length: Math.max(lines, rows) }, (_, i) => (
           <div key={i}>{i + 1}</div>

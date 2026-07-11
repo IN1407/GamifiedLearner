@@ -64,12 +64,12 @@ try {
   await page.getByText(/Demo mode explanation/).waitFor({ timeout: 10000 })
   check('AI Explain returns demo explanation', await page.getByText(/Demo mode explanation/).isVisible())
 
-  // ---- Code exercise: fill correct solution, run tests ----
+  // ---- Code exercise: fill a solution, verify it statically (never executed) ----
   const editor = page.getByLabel(/Code for/).first()
   await editor.fill('def describe(name, age):\n    return f"{name} is {age} years old"')
-  await page.getByRole('button', { name: /Run tests/ }).click()
-  await page.getByText(/All tests passed/).waitFor({ timeout: 15000 })
-  check('code exercise runs and passes', await page.getByText(/All tests passed/).isVisible())
+  await page.getByRole('button', { name: /Check my code/ }).click()
+  await page.getByText(/Structure checks passed/).waitFor({ timeout: 15000 })
+  check('code exercise verifies statically and passes', await page.getByText(/Structure checks passed/).isVisible())
 
   // ---- Left rail shows lock/complete/current states ----
   check('left rail lists locked lessons', (await page.locator('nav[aria-label="Course outline"] >> text=🔒').count()) >= 0)

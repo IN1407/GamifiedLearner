@@ -89,7 +89,7 @@ export default function LessonView({
         }
       })}
       {alreadyCompleted && (
-        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
           You already completed this lesson — feel free to review, but XP was awarded once.
         </p>
       )}

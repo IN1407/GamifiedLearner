@@ -34,12 +34,25 @@ export interface CodeExercise {
   title: string
   instructions: string // markdown
   starterCode: string
-  /** deterministic server-side tests; correctness never depends on the LLM */
+  /**
+   * Authoring/CI safety net only: reference tests that authors' solutions must
+   * pass (run in CI by test_exercise_solutions.py). Learner code is NEVER run
+   * against these — the app verifies learner submissions statically instead.
+   */
   tests: { name: string; code: string }[]
   difficulty: Difficulty
-  /** ask connected AI for qualitative style feedback after tests pass */
+  /** ask connected AI for qualitative style + correctness feedback after checks pass */
   aiFeedback?: boolean
   rubric?: string
+  /**
+   * Optional structural requirements checked statically (no execution). When
+   * omitted, the backend derives them from the starter's function stubs.
+   */
+  requirements?: {
+    mustDefine?: { name: string; minArgs?: number }[]
+    mustUse?: ('loop' | 'comprehension' | 'conditional' | 'try' | 'with' | 'return')[]
+    mustNotImport?: string[]
+  }
 }
 
 export interface PromptExercise {

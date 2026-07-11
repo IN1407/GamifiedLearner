@@ -19,17 +19,17 @@ export default function SoftmaxViz() {
   }, [logits, temp])
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-[#fcfcfb] p-4">
-      <p className="text-sm font-semibold text-[#0b0b0b]">Softmax = logits → probability distribution</p>
-      <p className="mb-3 text-xs text-[#52514e]">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <p className="text-sm font-semibold text-slate-100">Softmax = logits → probability distribution</p>
+      <p className="mb-3 text-xs text-slate-400">
         softmax(z)ᵢ = e^(zᵢ/T) / Σⱼ e^(zⱼ/T). Note the outputs always sum to 1 — that's what makes it a
         probability distribution.
       </p>
       <div className="space-y-3">
         {LABELS.map((label, i) => (
           <div key={label} className="grid grid-cols-[64px_1fr_minmax(0,1.2fr)] items-center gap-3">
-            <span className="text-sm font-medium text-[#0b0b0b]">{label}</span>
-            <label className="flex items-center gap-2 text-xs text-[#52514e]">
+            <span className="text-sm font-medium text-slate-100">{label}</span>
+            <label className="flex items-center gap-2 text-xs text-slate-400">
               <span className="sr-only">Logit for {label}</span>
               <input
                 type="range"
@@ -52,13 +52,13 @@ export default function SoftmaxViz() {
                 aria-label={`Probability of ${label}: ${(probs[i] * 100).toFixed(1)} percent`}
                 title={`P(${label}) = ${(probs[i] * 100).toFixed(1)}%`}
               />
-              <span className="font-mono text-xs text-[#52514e]">{(probs[i] * 100).toFixed(1)}%</span>
+              <span className="font-mono text-xs text-slate-400">{(probs[i] * 100).toFixed(1)}%</span>
             </div>
           </div>
         ))}
       </div>
-      <label className="mt-4 block text-xs text-[#52514e]">
-        Temperature T = <span className="font-mono font-semibold text-[#0b0b0b]">{temp.toFixed(2)}</span>
+      <label className="mt-4 block text-xs text-slate-400">
+        Temperature T = <span className="font-mono font-semibold text-slate-100">{temp.toFixed(2)}</span>
         <input
           type="range"
           min="0.05"
@@ -69,7 +69,7 @@ export default function SoftmaxViz() {
           className="mt-1 w-full accent-[#2a78d6]"
         />
       </label>
-      <p className="mt-2 text-xs text-[#52514e]">
+      <p className="mt-2 text-xs text-slate-400">
         Low T sharpens toward argmax (greedy decoding); high T flattens toward uniform (more random
         sampling). This is the same "temperature" knob you see in every LLM API.
       </p>

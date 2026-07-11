@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { courses, courseProgressPct, firstIncomplete } from '../content'
 import { useStore, useStreak, useXp } from '../state/useStore'
 import { levelForXp } from '../lib/gamification'
+import StatusBar from '../components/StatusBar'
 
 const MATH_LEVEL_LABELS: Record<string, string> = {
   middle: 'Middle school',
@@ -23,14 +24,14 @@ export default function Home() {
     <div className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-100">
             🎓 GamifiedLearner
           </h1>
-          <p className="mt-1 text-slate-500">From zero Python to AI internals — one streak at a time.</p>
+          <p className="mt-1 text-slate-400">From zero Python to AI internals — one streak at a time.</p>
         </div>
         <Link
           to="/settings"
-          className="self-start rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          className="self-start rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 shadow-sm hover:bg-slate-800/60"
         >
           ⚙️ Settings
         </Link>
@@ -59,16 +60,19 @@ export default function Home() {
         />
       </section>
 
+      {/* Status progression (derived from milestones) */}
+      <StatusBar progress={progress} />
+
       <div className="mb-8 flex flex-wrap gap-3 text-sm">
         <Link
           to="/settings#math-level"
-          className="rounded-full border border-slate-300 bg-white px-4 py-1.5 text-slate-700 shadow-sm hover:bg-slate-50"
+          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-slate-200 shadow-sm hover:bg-slate-800/60"
         >
           📐 Math level: <strong>{MATH_LEVEL_LABELS[profile?.mathLevel ?? 'college']}</strong>
         </Link>
         <Link
           to="/settings#ai"
-          className="rounded-full border border-slate-300 bg-white px-4 py-1.5 text-slate-700 shadow-sm hover:bg-slate-50"
+          className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-slate-200 shadow-sm hover:bg-slate-800/60"
         >
           🤖 {aiConfig ? `AI: ${aiConfig.provider} / ${aiConfig.model}` : 'Connect your AI →'}
         </Link>
@@ -86,7 +90,7 @@ export default function Home() {
             <Link
               key={course.id}
               to={target}
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              className="group rounded-3xl border border-slate-800 bg-slate-900 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div
                 className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl text-2xl"
@@ -95,10 +99,10 @@ export default function Home() {
               >
                 {course.id === 'course1' ? '🐍' : '🧠'}
               </div>
-              <h2 className="text-xl font-bold text-slate-900 group-hover:text-indigo-700">{course.title}</h2>
-              <p className="mt-1 text-sm text-slate-500">{course.tagline}</p>
+              <h2 className="text-xl font-bold text-slate-100 group-hover:text-indigo-300">{course.title}</h2>
+              <p className="mt-1 text-sm text-slate-400">{course.tagline}</p>
               <div className="mt-4">
-                <div className="mb-1 flex justify-between text-xs text-slate-500">
+                <div className="mb-1 flex justify-between text-xs text-slate-400">
                   <span>
                     {course.modules.length} modules ·{' '}
                     {course.modules.reduce((n, m) => n + m.lessons.length, 0)} lessons
@@ -106,7 +110,7 @@ export default function Home() {
                   <span className="font-semibold">{pct}%</span>
                 </div>
                 <div
-                  className="h-2 overflow-hidden rounded-full bg-slate-100"
+                  className="h-2 overflow-hidden rounded-full bg-slate-800"
                   role="progressbar"
                   aria-valuenow={pct}
                   aria-valuemin={0}
@@ -116,7 +120,7 @@ export default function Home() {
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: course.accent }} />
                 </div>
               </div>
-              <p className="mt-4 text-sm font-semibold text-indigo-600">
+              <p className="mt-4 text-sm font-semibold text-indigo-300">
                 {pct === 0 ? 'Start course →' : pct === 100 ? 'Review course →' : `Continue: ${next?.lesson.title} →`}
               </p>
             </Link>
@@ -145,20 +149,20 @@ function StatTile({
       <p className="text-xl" aria-hidden>
         {emoji}
       </p>
-      <p className="mt-1 truncate text-lg font-extrabold text-slate-900">{value}</p>
-      <p className="truncate text-xs text-slate-500" title={label}>
+      <p className="mt-1 truncate text-lg font-extrabold text-slate-100">{value}</p>
+      <p className="truncate text-xs text-slate-400" title={label}>
         {label}
       </p>
       {bar !== undefined && (
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
           <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.round(bar * 100)}%` }} />
         </div>
       )}
     </>
   )
-  const cls = 'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm'
+  const cls = 'rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-sm'
   return to ? (
-    <Link to={to} className={`${cls} transition hover:bg-slate-50`}>
+    <Link to={to} className={`${cls} transition hover:bg-slate-800/60`}>
       {inner}
     </Link>
   ) : (

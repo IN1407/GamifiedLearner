@@ -1,14 +1,17 @@
-"""Deterministic code-exercise runner.
+"""Author-solution runner — INTERNAL / CI USE ONLY.
 
-Executes learner Python against per-exercise test snippets in a subprocess:
+IMPORTANT: This module executes Python and MUST NEVER receive learner-submitted
+code. It is not imported by the API (`app.main`) and is not reachable from any
+HTTP endpoint. Its sole remaining purpose is the CI safety net in
+`tests/test_exercise_solutions.py`, which runs the *authors'* reference
+solutions against each exercise's tests to prove the exercises are solvable.
+
+Learner code is verified statically and never executed — see
+`app.syntax_check` and the `/api/verify` endpoint.
+
+It executes reference Python against per-exercise test snippets in a subprocess:
 python -I (isolated mode), temp working dir, wall-clock timeout, and (POSIX)
-CPU/memory rlimits. Correctness is decided here, deterministically; the LLM
-only ever comments on style.
-
-Threat model note: this app is local-first — the backend runs on the
-learner's own machine, so the sandbox guards against accidents (infinite
-loops, huge allocations, stray file writes), not a hostile multi-tenant
-attacker. Documented in the README.
+CPU/memory rlimits.
 """
 
 from __future__ import annotations
