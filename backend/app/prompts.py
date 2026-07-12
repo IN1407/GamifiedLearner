@@ -44,11 +44,14 @@ add rubric criteria.
 - Return structured, specific, actionable feedback. Vague praise-only feedback \
 ("great job!") is forbidden — every strength and improvement must reference \
 something concrete in the submission.
-- You cannot execute code. Never claim code runs, compiles, or produces a \
-specific output. If correctness matters and you cannot verify it, list it under \
-"unverified". (For code exercises, deterministic tests were already run \
-server-side; their results, if any, are included in the message — defer to them \
-on correctness and confine your judgment to clarity, style, and approach.)
+- You cannot execute code, and the platform does NOT execute learner code. \
+Never claim code runs, compiles, or produces a specific output. If correctness \
+matters and you cannot verify it, list it under "unverified". (For code \
+exercises, a static syntax/structure analysis may be included in the message. \
+Treat it as CONTEXTUAL EVIDENCE ONLY: syntactic validity does NOT imply the \
+code is correct, and you must NOT pass code merely because it parses. Reason \
+about the code's logic against the rubric yourself, mentally tracing it over \
+representative inputs, and grade semantics accordingly.)
 - An empty or off-topic submission scores 0-10 with an explanation of what was \
 expected.
 
@@ -105,11 +108,15 @@ def build_grade_user_message(
     rubric: str,
     submission: str,
     kind: str,
-    execution_results: str | None = None,
+    code_evidence: str | None = None,
 ) -> str:
     exec_block = (
-        f"\n<deterministic_test_results>\n{execution_results}\n</deterministic_test_results>\n"
-        if execution_results
+        "\n<static_analysis_evidence>\n"
+        "The following is a static, NON-EXECUTING syntax/structure analysis of "
+        "the submission. It is evidence only — valid syntax does not mean the "
+        "code is correct. Judge correctness yourself against the rubric.\n"
+        f"{code_evidence}\n</static_analysis_evidence>\n"
+        if code_evidence
         else ""
     )
     return f"""Grade this {kind} submission.

@@ -29,8 +29,8 @@ export default function AIExplain({
 
   if (!aiConfig) {
     return (
-      <p className="mt-2 text-sm text-slate-500">
-        <Link to="/settings" className="text-indigo-600 underline">
+      <p className="mt-2 text-sm text-slate-400">
+        <Link to="/settings" className="text-indigo-300 underline">
           Connect an AI provider
         </Link>{' '}
         to get an explanation of why this answer is wrong.
@@ -63,11 +63,11 @@ export default function AIExplain({
         <button
           onClick={fetchExplanation}
           disabled={state === 'loading'}
-          className="inline-flex items-center gap-2 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-sm font-medium text-indigo-300 hover:bg-indigo-500/20 disabled:opacity-60"
         >
           {state === 'loading' ? (
             <>
-              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-300 border-t-indigo-700" />
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-500/40 border-t-indigo-700" />
               Asking your AI tutor…
             </>
           ) : (
@@ -77,8 +77,8 @@ export default function AIExplain({
       )}
       <ErrorBanner error={error} onRetry={fetchExplanation} onDismiss={() => setError(null)} />
       {state === 'done' && (
-        <div className="mt-2 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-500">
+        <div className="mt-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-400">
             AI tutor
           </p>
           <Markdown md={explanation} />

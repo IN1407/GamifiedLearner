@@ -8,6 +8,9 @@ export interface ShareCardData {
   level: number
   totalXp: number
   streakWeeks: number
+  /** milestone status title earned, e.g. "Neural Architect" — shown as a badge */
+  statusTitle?: string
+  statusIcon?: string
 }
 
 export async function renderShareCard(data: ShareCardData): Promise<Blob> {
@@ -61,6 +64,20 @@ export async function renderShareCard(data: ShareCardData): Promise<Blob> {
   ctx.font = sans(500, 30)
   ctx.fillStyle = 'rgba(255,255,255,0.75)'
   ctx.fillText(truncate(ctx, data.courseTitle, W - 140), 70, 340)
+
+  // Status badge pill (when a milestone status was earned)
+  if (data.statusTitle) {
+    const label = `${data.statusIcon ? data.statusIcon + '  ' : ''}STATUS UNLOCKED · ${data.statusTitle}`
+    ctx.font = sans(700, 26)
+    const padX = 22
+    const textW = ctx.measureText(label).width
+    const pillW = Math.min(textW + padX * 2, W - 140)
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'
+    roundRect(ctx, 70, 356, pillW, 40, 20)
+    ctx.fill()
+    ctx.fillStyle = '#ffffff'
+    ctx.fillText(truncate(ctx, label, pillW - padX * 2), 70 + padX, 383)
+  }
 
   // Stat tiles
   const stats: [string, string][] = [

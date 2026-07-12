@@ -59,6 +59,19 @@ describe('renderShareCard', () => {
     expect(text).toContain('3w') // streak
   })
 
+  it('draws the earned status badge when provided', async () => {
+    await renderShareCard({ ...data, statusTitle: 'Neural Architect', statusIcon: '🏗️' })
+    const text = calls.filter((c) => c.startsWith('text:')).join('|')
+    expect(text).toContain('Neural Architect')
+    expect(text).toContain('STATUS UNLOCKED')
+  })
+
+  it('omits the status badge when no status is earned', async () => {
+    await renderShareCard(data)
+    const text = calls.filter((c) => c.startsWith('text:')).join('|')
+    expect(text).not.toContain('STATUS UNLOCKED')
+  })
+
   it('rejects if canvas export fails', async () => {
     HTMLCanvasElement.prototype.toBlob = function (cb: (b: Blob | null) => void) {
       cb(null)

@@ -43,17 +43,70 @@ def test_unknown_provider_400():
     assert r.json()["error"]["type"] == "bad_request"
 
 
-def test_execute_endpoint():
+def test_execute_endpoint_is_gone():
+    # Learner code is never executed: the old execution endpoint must not exist.
+    r = client.post("/api/execute", json={"code": "x", "tests": []})
+    assert r.status_code == 404
+
+
+def test_no_route_imports_the_executor():
+    # Defense in depth: the API module must not pull in the executing runner.
+    import app.main as main_module
+
+    assert not hasattr(main_module, "run_exercise")
+
+
+def test_verify_endpoint_accepts_valid_code():
     r = client.post(
-        "/api/execute",
+        "/api/verify",
         json={
             "code": "def add(a, b):\n    return a + b",
-            "tests": [{"name": "t", "code": "assert add(1, 2) == 3"}],
+            "starter_code": "def add(a, b):\n    pass",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["valid"] is True
+    assert body["passed"] is True
+    assert body["all_checks_passed"] is True
+    # Static facts, no execution.
+    assert "add" in body["facts"]["functions"]
+
+
+def test_verify_endpoint_reports_syntax_error():
+    r = client.post("/api/verify", json={"code": "def broken(:\n    return 1"})
+    body = r.json()
+    assert body["valid"] is False
+    assert body["passed"] is False
+    assert body["error"]["lineno"] == 1
+
+
+def test_verify_unimplemented_stub_does_not_pass():
+    r = client.post(
+        "/api/verify",
+        json={
+            "code": "def add(a, b):\n    pass",
+            "starter_code": "def add(a, b):\n    pass",
         },
     )
     body = r.json()
-    assert body["all_passed"] is True
-    assert body["results"][0]["passed"] is True
+    assert body["valid"] is True  # it parses
+    assert body["passed"] is False  # but it's an unchanged, unimplemented stub
+
+
+def test_verify_never_executes_submitted_code(tmp_path):
+    # If the submission were executed, this file would be created. It must not be.
+    sentinel = tmp_path / "PWNED"
+    hostile = (
+        "import os\n"
+        f"open({str(sentinel)!r}, 'w').write('x')\n"
+        "os.system('echo pwned')\n"
+        "while True:\n    pass\n"
+    )
+    r = client.post("/api/verify", json={"code": hostile, "starter_code": ""})
+    assert r.status_code == 200  # returns quickly; no infinite loop ran
+    assert r.json()["valid"] is True  # it's valid Python, just never run
+    assert not sentinel.exists(), "learner code must never be executed"
 
 
 def test_demo_explain():

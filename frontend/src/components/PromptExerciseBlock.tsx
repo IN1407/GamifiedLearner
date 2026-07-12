@@ -73,19 +73,19 @@ export default function PromptExerciseBlock({
   return (
     <section
       aria-label={`Exercise: ${exercise.title}`}
-      className="my-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+      className="my-6 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-sm"
     >
-      <h3 className="mb-1 flex items-center gap-2 text-lg font-bold text-slate-900">
+      <h3 className="mb-1 flex items-center gap-2 text-lg font-bold text-slate-100">
         <span aria-hidden>🎯</span> {exercise.title}
-        {grade && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">Graded</span>}
+        {grade && <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-semibold text-indigo-300">Graded</span>}
       </h3>
       <p className="mb-3 text-xs text-slate-400">
         Free-text exercise · up to {maxXp} XP · graded by your connected AI against a fixed rubric
       </p>
       <Markdown md={exercise.instructions} />
 
-      <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-        <summary className="cursor-pointer font-semibold text-slate-600">
+      <details className="mt-3 rounded-xl border border-slate-800 bg-slate-800/60 p-3 text-sm">
+        <summary className="cursor-pointer font-semibold text-slate-300">
           Grading rubric (shown up front — no surprises)
         </summary>
         <div className="mt-2">
@@ -94,7 +94,7 @@ export default function PromptExerciseBlock({
       </details>
 
       {!aiConfig ? (
-        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <p className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-300">
           This exercise needs an AI grader.{' '}
           <Link to="/settings" className="font-medium underline">
             Connect a provider in Settings
@@ -115,10 +115,10 @@ export default function PromptExerciseBlock({
             }}
             rows={7}
             placeholder={exercise.placeholder ?? 'Write your answer here…'}
-            className="mt-4 w-full rounded-xl border border-slate-300 p-3 text-sm leading-6 focus:border-indigo-400"
+            className="mt-4 w-full rounded-xl border border-slate-700 p-3 text-sm leading-6 focus:border-indigo-400"
           />
           {emptyWarning && (
-            <p role="alert" className="mt-1 text-sm text-rose-600">
+            <p role="alert" className="mt-1 text-sm text-rose-300">
               Your submission is empty — write your answer before submitting.
             </p>
           )}
@@ -130,7 +130,7 @@ export default function PromptExerciseBlock({
             >
               {grading ? (
                 <>
-                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-300 border-t-white" />
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-500/40 border-t-white" />
                   Grading…
                 </>
               ) : grade ? (
@@ -139,7 +139,7 @@ export default function PromptExerciseBlock({
                 'Submit for grading'
               )}
             </button>
-            {bestXp > 0 && <span className="text-sm font-medium text-emerald-700">+{bestXp} XP earned</span>}
+            {bestXp > 0 && <span className="text-sm font-medium text-emerald-300">+{bestXp} XP earned</span>}
           </div>
         </>
       )}

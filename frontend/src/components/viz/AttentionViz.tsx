@@ -43,9 +43,9 @@ export default function AttentionViz() {
   const width = TOKENS.length * cell
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-[#fcfcfb] p-4">
-      <p className="text-sm font-semibold text-[#0b0b0b]">Attention weights, live</p>
-      <p className="mb-3 text-xs text-[#52514e]">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
+      <p className="text-sm font-semibold text-slate-100">Attention weights, live</p>
+      <p className="mb-3 text-xs text-slate-400">
         Pick a <strong>query</strong> token; the row shows softmax(q·kᵀ{scaled ? '/√d' : ''}) over every key.
       </p>
 
@@ -57,7 +57,7 @@ export default function AttentionViz() {
             aria-checked={queryIdx === i}
             onClick={() => setQueryIdx(i)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              queryIdx === i ? 'bg-[#2a78d6] text-white' : 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+              queryIdx === i ? 'bg-[#2a78d6] text-white' : 'border border-slate-700 bg-slate-900 text-slate-200 hover:border-slate-600'
             }`}
           >
             {t}
@@ -97,7 +97,7 @@ export default function AttentionViz() {
               >
                 {(weights[i] * 100).toFixed(0)}%
               </text>
-              <text x={i * cell + cell / 2} y={cell + 36} textAnchor="middle" fontSize="11" fill="#898781">
+              <text x={i * cell + cell / 2} y={cell + 36} textAnchor="middle" fontSize="11" fill="#94a3b8">
                 {t}
               </text>
             </g>
@@ -105,11 +105,11 @@ export default function AttentionViz() {
         </svg>
       </div>
 
-      <label className="mt-3 flex items-center gap-2 text-sm text-[#52514e]">
+      <label className="mt-3 flex items-center gap-2 text-sm text-slate-400">
         <input type="checkbox" checked={scaled} onChange={(e) => setScaled(e.target.checked)} className="accent-[#2a78d6]" />
         Divide scores by √d (d={D}) before softmax
       </label>
-      <p className="mt-2 text-xs text-[#52514e]">
+      <p className="mt-2 text-xs text-slate-400">
         Uncheck the box: raw dot products grow with dimension, softmax saturates toward one token, and
         gradients through it vanish — that is exactly why the √d scaling term exists in
         softmax(QKᵀ/√d)V.
