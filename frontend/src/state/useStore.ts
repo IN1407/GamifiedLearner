@@ -11,6 +11,8 @@ import {
   loadAllEvents,
   loadAllProgress,
   loadProfile,
+  loadAllMastery,
+  saveMastery,
   resetProgress as dbResetProgress,
   saveAIConfig,
   saveAssessment,
@@ -23,6 +25,8 @@ import {
   type MathLevel,
   type Profile,
 } from '../lib/db'
+import { mapMathLevelToGrade, updateMastery, type GradeLevel, type MasteryEvidence, type TopicMastery } from '../lib/mastery'
+import { buildProgressDocument, persistProgressDocument, subscribeSaveState, type SaveState } from '../lib/progressRepository'
 import { encryptSecret } from '../lib/crypto'
 import { computeStreak, totalXp, type StreakInfo } from '../lib/gamification'
 import { progressKey } from '../content/types'
@@ -34,10 +38,14 @@ interface StoreState {
   progress: Record<string, LessonProgress>
   events: ActivityEvent[]
   assessments: Record<string, AssessmentRecord>
+  mastery: Record<string, TopicMastery>
+  saveState: SaveState
 
   hydrate: () => Promise<void>
   completeOnboarding: (mathLevel: MathLevel, commitment: number) => Promise<void>
   setMathLevel: (level: MathLevel) => Promise<void>
+  setGradeLevel: (level: GradeLevel) => Promise<void>
+  recordMasteryEvidence: (evidence: MasteryEvidence) => Promise<void>
   setCommitment: (n: number) => Promise<void>
   connectAI: (opts: {
     provider: string
@@ -74,19 +82,26 @@ export const useStore = create<StoreState>((set, get) => ({
   progress: {},
   events: [],
   assessments: {},
+  mastery: {},
+  saveState: 'idle',
 
   hydrate: async () => {
-    const [profile, aiConfig, progressList, events, assessmentList] = await Promise.all([
+    const [profileRaw, aiConfig, progressList, events, assessmentList, masteryList] = await Promise.all([
       loadProfile(),
       loadAIConfig(),
       loadAllProgress(),
       loadAllEvents(),
       loadAllAssessments(),
+      loadAllMastery(),
     ])
+    const profile = profileRaw ? { ...profileRaw, gradeLevel: profileRaw.gradeLevel ?? mapMathLevelToGrade(profileRaw.mathLevel) } : undefined
     const progress: Record<string, LessonProgress> = {}
     for (const p of progressList) progress[p.lessonId] = p
     const assessments: Record<string, AssessmentRecord> = {}
     for (const a of assessmentList) assessments[a.assessmentId] = a
+    const mastery: Record<string, TopicMastery> = {}
+    for (const m of masteryList) mastery[m.topicId] = m
+    subscribeSaveState((saveState) => set({ saveState }))
     set({
       hydrated: true,
       profile: profile ?? null,
@@ -94,6 +109,7 @@ export const useStore = create<StoreState>((set, get) => ({
       progress,
       events,
       assessments,
+      mastery,
     })
   },
 
@@ -101,20 +117,40 @@ export const useStore = create<StoreState>((set, get) => ({
     const profile: Profile = {
       id: 'local',
       mathLevel,
+      gradeLevel: mapMathLevelToGrade(mathLevel),
       commitmentPerWeek: commitment,
       onboardingComplete: true,
       createdAt: get().profile?.createdAt ?? Date.now(),
     }
     await saveProfile(profile)
     set({ profile })
+    await persistProgressDocument(await buildProgressDocument(get().mastery))
   },
 
   setMathLevel: async (mathLevel) => {
     const prev = get().profile
     if (!prev) return
-    const profile = { ...prev, mathLevel }
+    const profile = { ...prev, mathLevel, gradeLevel: mapMathLevelToGrade(mathLevel) }
     await saveProfile(profile)
     set({ profile })
+    await persistProgressDocument(await buildProgressDocument(get().mastery))
+  },
+
+  setGradeLevel: async (gradeLevel) => {
+    const prev = get().profile
+    if (!prev) return
+    const profile = { ...prev, gradeLevel }
+    await saveProfile(profile)
+    set({ profile })
+    await persistProgressDocument(await buildProgressDocument(get().mastery))
+  },
+
+  recordMasteryEvidence: async (evidence) => {
+    const prev = get().mastery[evidence.topicId]
+    const record = updateMastery(prev, evidence)
+    await saveMastery(record)
+    set((state) => ({ mastery: { ...state.mastery, [record.topicId]: record } }))
+    await persistProgressDocument(await buildProgressDocument(get().mastery))
   },
 
   setCommitment: async (commitmentPerWeek) => {
@@ -123,6 +159,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const profile = { ...prev, commitmentPerWeek }
     await saveProfile(profile)
     set({ profile })
+    await persistProgressDocument(await buildProgressDocument(get().mastery))
   },
 
   connectAI: async ({ provider, apiKey, baseUrl, model }) => {
@@ -175,6 +212,7 @@ export const useStore = create<StoreState>((set, get) => ({
       progress: { ...s.progress, [key]: record },
       events: [...s.events, event],
     }))
+    await persistProgressDocument(await buildProgressDocument(get().mastery))
   },
 
   recordAssessmentAttempt: async ({ assessmentId, courseId, scoreFraction, earned, total, passed, xpOnPass }) => {
@@ -203,12 +241,14 @@ export const useStore = create<StoreState>((set, get) => ({
       assessments: { ...s.assessments, [assessmentId]: record },
       events: event ? [...s.events, event] : s.events,
     }))
+    await persistProgressDocument(await buildProgressDocument(get().mastery))
     return newlyPassed
   },
 
   resetProgress: async () => {
     await dbResetProgress()
-    set({ progress: {}, events: [], assessments: {} })
+    set({ progress: {}, events: [], assessments: {}, mastery: {} })
+    await persistProgressDocument(await buildProgressDocument({}))
   },
 
   reloadFromDB: async () => {
