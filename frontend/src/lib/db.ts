@@ -63,6 +63,24 @@ export interface AssessmentRecord {
   attempts: AssessmentAttemptRecord[]
 }
 
+export interface ExplanationVersion {
+  id: string
+  versionNumber: number
+  parentId: string | null
+  createdAt: number
+  /** the learner's revision instruction; null for the original (v1) */
+  request: string | null
+  text: string
+}
+
+export interface ExplanationHistory {
+  /** stable per explanation site, e.g. `${lessonId}:${questionId}` */
+  siteId: string
+  versions: ExplanationVersion[]
+  currentVersionId: string
+  updatedAt: number
+}
+
 interface GLSchema extends DBSchema {
   profile: { key: string; value: Profile }
   aiConfig: { key: string; value: AIConfig }
@@ -77,11 +95,12 @@ interface GLSchema extends DBSchema {
     indexes: { byTs: number }
   }
   assessments: { key: string; value: AssessmentRecord }
+  explanations: { key: string; value: ExplanationHistory }
   meta: { key: string; value: { id: string; value: unknown } }
 }
 
 const DB_NAME = 'gamified-learner'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let dbPromise: Promise<IDBPDatabase<GLSchema>> | null = null
 
@@ -108,6 +127,9 @@ export function getDB(): Promise<IDBPDatabase<GLSchema>> {
         }
         if (!db.objectStoreNames.contains('assessments')) {
           db.createObjectStore('assessments', { keyPath: 'assessmentId' })
+        }
+        if (!db.objectStoreNames.contains('explanations')) {
+          db.createObjectStore('explanations', { keyPath: 'siteId' })
         }
         if (!db.objectStoreNames.contains('meta')) {
           db.createObjectStore('meta', { keyPath: 'id' })
@@ -164,6 +186,14 @@ export async function saveAssessment(record: AssessmentRecord): Promise<void> {
   await (await getDB()).put('assessments', record)
 }
 
+// ---- explanation version history ----
+export async function loadExplanation(siteId: string): Promise<ExplanationHistory | undefined> {
+  return (await getDB()).get('explanations', siteId)
+}
+export async function saveExplanation(history: ExplanationHistory): Promise<void> {
+  await (await getDB()).put('explanations', history)
+}
+
 // ---- meta (crypto key lives here) ----
 export async function getMeta<T>(id: string): Promise<T | undefined> {
   const row = await (await getDB()).get('meta', id)
@@ -216,9 +246,10 @@ export async function importState(state: ExportedState): Promise<void> {
 /** Reset learning progress only — keeps profile + AI connection. */
 export async function resetProgress(): Promise<void> {
   const db = await getDB()
-  const tx = db.transaction(['progress', 'events', 'assessments'], 'readwrite')
+  const tx = db.transaction(['progress', 'events', 'assessments', 'explanations'], 'readwrite')
   await tx.objectStore('progress').clear()
   await tx.objectStore('events').clear()
   await tx.objectStore('assessments').clear()
+  await tx.objectStore('explanations').clear()
   await tx.done
 }

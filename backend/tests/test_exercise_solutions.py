@@ -364,6 +364,22 @@ SOLUTIONS: list[tuple[str, str, list[dict]]] = [
             {"name": "b", "code": 'out = build_context(["x"], "q")\nassert "1" in out'},
         ],
     ),
+    (
+        "ex-accumulate-stream",
+        'def accumulate_stream(deltas):\n    return "".join(d for d in deltas if d is not None)',
+        [
+            {"name": "a", "code": 'assert accumulate_stream(["He", "llo", " world"]) == "Hello world"'},
+            {"name": "b", "code": 'assert accumulate_stream(["a", None, "b", None]) == "ab"'},
+            {"name": "c", "code": "assert accumulate_stream([]) == ''"},
+        ],
+    ),
+    (
+        "ex-make-messages",
+        'def make_messages(system, user):\n    return [{"role": "system", "content": system}, {"role": "user", "content": user}]',
+        [
+            {"name": "a", "code": 'assert make_messages("be terse", "hi") == [{"role": "system", "content": "be terse"}, {"role": "user", "content": "hi"}]'},
+        ],
+    ),
 ]
 
 
@@ -378,4 +394,4 @@ def test_reference_solution_passes_all(ex_id, solution, tests):
 def test_every_code_exercise_has_a_reference_solution():
     """Guards against adding a code exercise without validating it here.
     Keep this count in sync with `type: 'exercise'` blocks in the frontend content."""
-    assert len(SOLUTIONS) == 36
+    assert len(SOLUTIONS) == 38

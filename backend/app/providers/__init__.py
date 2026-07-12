@@ -10,6 +10,7 @@ from .ollama_provider import OllamaProvider
 from .openai_compat import (
     DeepSeekProvider,
     GroqProvider,
+    LlamaCppProvider,
     MiniMaxProvider,
     MoonshotProvider,
     OpenAICompatProvider,
@@ -28,11 +29,12 @@ PROVIDERS: dict[str, type[LLMProvider]] = {
     "moonshot": MoonshotProvider,
     "minimax": MiniMaxProvider,
     "ollama": OllamaProvider,
+    "llamacpp": LlamaCppProvider,
     "demo": DemoProvider,
 }
 
-# Providers that work with no API key.
-KEYLESS = {"ollama", "demo"}
+# Providers that work with no API key (local, offline).
+KEYLESS = {"ollama", "llamacpp", "demo"}
 
 
 def get_provider(name: str, api_key: str | None, base_url: str | None) -> LLMProvider:

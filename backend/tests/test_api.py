@@ -24,6 +24,38 @@ def test_list_providers_includes_all_ten_plus_demo():
     assert demo["needs_key"] is False
 
 
+def test_local_providers_are_keyless():
+    providers = client.get("/api/providers").json()
+    by_id = {p["id"]: p for p in providers}
+    for pid in ("ollama", "llamacpp"):
+        assert pid in by_id, f"{pid} missing from provider list"
+        assert by_id[pid]["needs_key"] is False
+    # llama.cpp defaults to its local OpenAI-compatible server
+    assert by_id["llamacpp"]["default_base_url"] == "http://localhost:8080/v1"
+
+
+def test_llamacpp_provider_is_keyless_and_local():
+    from app.providers import get_provider
+    from app.providers.openai_compat import LlamaCppProvider
+
+    # keyless: constructing without a key must not raise
+    prov = get_provider("llamacpp", None, None)
+    assert isinstance(prov, LlamaCppProvider)
+    # no key => no Authorization header; with a key => bearer sent
+    assert prov._headers() == {}
+    assert get_provider("llamacpp", "sk-x", None)._headers() == {"Authorization": "Bearer sk-x"}
+
+
+def test_llamacpp_unreachable_gives_actionable_network_error():
+    # Nothing is serving :8080 in tests, so validate should fail fast with a
+    # typed network error that tells the user how to start a server.
+    r = client.post("/api/providers/validate", json={"provider": "llamacpp"})
+    assert r.status_code == 502
+    body = r.json()
+    assert body["error"]["type"] == "network"
+    assert "llama.cpp server" in body["error"]["message"]
+
+
 def test_validate_demo_no_key():
     r = client.post("/api/providers/validate", json={"provider": "demo"})
     assert r.status_code == 200
@@ -141,6 +173,24 @@ def test_demo_grade_returns_structured():
     body = r.json()
     assert isinstance(body["score"], int)
     assert body["improvements"]
+
+
+def test_demo_revise_tunes_explanation():
+    r = client.post(
+        "/api/ai/revise",
+        json={
+            "provider": "demo",
+            "model": "demo-tutor-1",
+            "original": "A variable stores a value.",
+            "instruction": "use an analogy",
+            "lesson_context": "python basics",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert "use an analogy" in body["explanation"]
+    # the revision references the original content, not a brand-new answer
+    assert "variable" in body["explanation"].lower()
 
 
 def test_grade_empty_submission_scores_zero():

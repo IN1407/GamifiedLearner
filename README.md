@@ -8,7 +8,7 @@ After each major checkpoint you take a mixed **quiz + coding** assessment. Score
 
 Two courses:
 
-- **Course 1 — Python for AI & Backend** (13 modules): Python fundamentals → data structures → intermediate Python → tooling (decorators/generators/async) → FastAPI backend → math for AI → neural-network internals (backprop derived from scratch) → transformers in depth → efficient attention (DeepSeek MLA, MiniMax lightning attention, Kimi K2 — with cited primary sources) → running models → fine-tuning (LoRA/QLoRA) → RAG → a capstone.
+- **Course 1 — Python for AI & Backend** (14 modules): Python fundamentals → data structures → intermediate Python → tooling (decorators/generators/async) → FastAPI backend → math for AI → neural-network internals (backprop derived from scratch) → transformers in depth → efficient attention (DeepSeek MLA, MiniMax lightning attention, Kimi K2 — with cited primary sources) → running models → fine-tuning (LoRA/QLoRA) → RAG → calling AI providers from Python (OpenAI, Anthropic, Google GenAI, Groq, xAI, Z.AI, Ollama, llama-cpp-python, Transformers) → a capstone.
 - **Course 2 — AI-Power Usage** (5 modules): prompting fundamentals, advanced prompting, the tool landscape, workflow design, and a capstone. No multiple choice — every checkpoint is a free-text exercise graded by your connected AI against a rubric.
 
 ## Quick start
@@ -55,7 +55,7 @@ Serve `frontend/dist` as static files behind the same host/origin as the backend
 
 ### AI provider support
 
-OpenAI, Anthropic, Google (Gemini), Groq, OpenRouter, DeepSeek, Zhipu/Z.ai, Moonshot (Kimi), MiniMax, Ollama (local, no key), and a built-in Demo provider. After you enter a key it's validated by calling the provider's live `/models` endpoint and the dropdown is populated from the response — no hardcoded model lists to go stale.
+OpenAI, Anthropic, Google (Gemini), Groq, OpenRouter, DeepSeek, Zhipu/Z.ai, Moonshot (Kimi), MiniMax, two **local, no-key** options — **Ollama** (native API) and **llama.cpp** (its OpenAI-compatible server, run via `python -m llama_cpp.server --model your-model.gguf`) — and a built-in Demo provider. After you enter a key it's validated by calling the provider's live `/models` endpoint and the dropdown is populated from the response — no hardcoded model lists to go stale. Local providers need no key and surface an actionable error if their server isn't running.
 
 > **Deliberate deviation from the brief's "use each provider's official SDK":** all adapters speak raw HTTP via `httpx` instead of ten vendor SDKs. Ten SDKs would mean ten dependency trees, ten error taxonomies, and ten retry behaviors to reconcile; a thin per-vendor HTTP adapter keeps error handling uniform and the surface small, and most of these vendors are OpenAI-wire-compatible anyway (so they share one adapter). The `LLMProvider` interface requirement is still honored.
 
@@ -64,7 +64,9 @@ OpenAI, Anthropic, Google (Gemini), Groq, OpenRouter, DeepSeek, Zhipu/Z.ai, Moon
 - **AI Explain / course tutor** — appears on a quiz question *only after a wrong answer*; explains why your answer was wrong and the correct one right, grounded in the lesson content, with an explicit anti-hallucination clause. Also powers the scoped course Q&A chat.
 - **Exercise / prompt grader** — grades free-text and code submissions against a per-exercise rubric, returns structured JSON feedback, and is forbidden from praise-only feedback or claiming code runs.
 
-Both prompts live in `backend/app/prompts.py` and are intentionally separate.
+- **Explanation reviser** — every AI explanation has a **"Change explanation"** control: the learner types how they want it changed ("make it simpler", "use an analogy", "explain with code") and gets a tuned rewrite. The original is preserved as Version 1, every revision is kept, and the version history is navigable and **persisted** (it survives a reload). A revision only appends a version on success, so a failed generation never corrupts the history.
+
+All three prompts live in `backend/app/prompts.py` and are intentionally separate.
 
 ## Security & privacy
 
@@ -76,10 +78,10 @@ Both prompts live in `backend/app/prompts.py` and are intentionally separate.
 
 ```bash
 # Backend: unit + API + static syntax verification (incl. proof learner code is never executed)
-cd backend && .venv/bin/python -m pytest tests/ -q      # 76 tests
+cd backend && .venv/bin/python -m pytest tests/ -q      # 82 tests
 
 # Frontend: gamification math, content integrity, share-card rendering, API client
-cd frontend && npm test                                  # 67 tests
+cd frontend && npm test                                  # 72 tests
 
 # End-to-end (drives the real app in Chromium; needs both servers running)
 cd frontend && node e2e-smoke.mjs                        # 14 checks

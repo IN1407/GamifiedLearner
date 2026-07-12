@@ -9,7 +9,7 @@ describe('course structure', () => {
 
   it('course 1 has 13 modules, each ending in a checkpoint', () => {
     const c1 = courses.find((c) => c.id === 'course1')!
-    expect(c1.modules).toHaveLength(13)
+    expect(c1.modules).toHaveLength(14)
     for (const m of c1.modules) {
       expect(m.lessons.length).toBeGreaterThan(0)
       expect(m.lessons[m.lessons.length - 1].kind).toBe('checkpoint')

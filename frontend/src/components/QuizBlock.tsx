@@ -20,11 +20,13 @@ interface QuestionState {
 export default function QuizBlock({
   quiz,
   lessonContext,
+  lessonId,
   onXpChange,
   onCompleteChange,
 }: {
   quiz: Quiz
   lessonContext: string
+  lessonId: string
   onXpChange: (xp: number) => void
   onCompleteChange: (complete: boolean) => void
 }) {
@@ -53,6 +55,7 @@ export default function QuizBlock({
               index={i}
               question={q}
               lessonContext={lessonContext}
+              siteId={`${lessonId}:${q.id}`}
               state={states[q.id] ?? { resolved: false, attempts: 0, earnedXp: 0, lastWrongAnswer: null, revealed: false }}
               onChange={(next) => update(q.id, next, states)}
             />
@@ -67,12 +70,14 @@ function QuestionView({
   index,
   question,
   lessonContext,
+  siteId,
   state,
   onChange,
 }: {
   index: number
   question: Question
   lessonContext: string
+  siteId: string
   state: QuestionState
   onChange: (next: QuestionState) => void
 }) {
@@ -215,6 +220,7 @@ function QuestionView({
                 <p className="font-medium">Not quite — try again.</p>
                 {state.lastWrongAnswer !== null && (
                   <AIExplain
+                    siteId={siteId}
                     question={question.prompt}
                     choices={question.kind === 'mcq' ? question.choices : []}
                     userAnswer={state.lastWrongAnswer}
