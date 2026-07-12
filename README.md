@@ -9,7 +9,7 @@ After each major checkpoint you take a mixed **quiz + coding** assessment. Score
 Two courses:
 
 - **Course 1 — Python for AI & Backend** (14 modules): Python fundamentals → data structures → intermediate Python → tooling (decorators/generators/async) → FastAPI backend → math for AI → neural-network internals (backprop derived from scratch) → transformers in depth → efficient attention (DeepSeek MLA, MiniMax lightning attention, Kimi K2 — with cited primary sources) → running models → fine-tuning (LoRA/QLoRA) → RAG → calling AI providers from Python (OpenAI, Anthropic, Google GenAI, Groq, xAI, Z.AI, Ollama, llama-cpp-python, Transformers) → a capstone.
-- **Course 2 — AI-Power Usage** (5 modules): prompting fundamentals, advanced prompting, the tool landscape, workflow design, and a capstone. No multiple choice — every checkpoint is a free-text exercise graded by your connected AI against a rubric.
+- **Course 2 — AI-Power Usage** (6 modules): prompting fundamentals, advanced prompting, the tool landscape, workflow design, reliable AI workflow engineering (context, loops, harnesses, agents, intent, verification, and reasoning styles), and a capstone. No multiple choice — every checkpoint is a free-text exercise graded by your connected AI against a rubric.
 
 ## Quick start
 
@@ -81,7 +81,7 @@ All three prompts live in `backend/app/prompts.py` and are intentionally separat
 cd backend && .venv/bin/python -m pytest tests/ -q      # 82 tests
 
 # Frontend: gamification math, content integrity, share-card rendering, API client
-cd frontend && npm test                                  # 72 tests
+cd frontend && npm test                                  # frontend unit/component tests
 
 # End-to-end (drives the real app in Chromium; needs both servers running)
 cd frontend && node e2e-smoke.mjs                        # 14 checks
@@ -109,7 +109,7 @@ frontend/
   src/
     lib/               db (IndexedDB), crypto, api client, gamification, share card
     state/             zustand store, hydrated from IndexedDB
-    content/           course1/ (13 modules) + course2/ (5 modules), typed content model
+    content/           course1/ (13 modules) + course2/ (6 modules), typed content model
     components/        lesson renderer, quiz/exercise engines, AI Explain, chat, viz, level-up
     pages/             Home, Onboarding, CoursePlayer, Settings
 ```

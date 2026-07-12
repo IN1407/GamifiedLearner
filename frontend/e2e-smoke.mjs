@@ -1,6 +1,6 @@
 // End-to-end smoke test: drives the real app in Chromium against the dev server.
 // Verifies onboarding, demo AI connect, course navigation, quiz grading with
-// AI-explain-on-wrong-answer, code exercise execution, lesson completion, and
+// AI-explain-on-wrong-answer, static code verification, lesson completion, and
 // the checkpoint level-up screen with share-card rendering.
 import { chromium } from 'playwright'
 
@@ -11,8 +11,10 @@ function check(name, cond) {
   console.log(`${cond ? '✅' : '❌'} ${name}`)
 }
 
+const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath,
+  args: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? ['--no-sandbox'] : [],
 })
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } })
 const page = await ctx.newPage()
