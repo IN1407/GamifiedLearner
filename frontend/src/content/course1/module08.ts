@@ -44,6 +44,11 @@ The idea to keep: **embedding = what the token means; positional encoding = wher
 `,
         },
         {
+          type: 'viz',
+          viz: 'tokenizer',
+          caption: 'Type any text to see it split into tokens — token count rarely equals character count.',
+        },
+        {
           type: 'quiz',
           quiz: {
             id: 'q-tokens',

@@ -4,6 +4,7 @@ import { useStore } from './state/useStore'
 import Home from './pages/Home'
 import Onboarding from './pages/Onboarding'
 import CoursePlayer from './pages/CoursePlayer'
+import AssessmentView from './pages/AssessmentView'
 import Settings from './pages/Settings'
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/" element={<Home />} />
       <Route path="/course/:courseId" element={<CoursePlayer />} />
+      <Route path="/course/:courseId/assessment/:assessmentId" element={<AssessmentView />} />
       <Route path="/course/:courseId/:moduleId/:lessonId" element={<CoursePlayer />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="*" element={<Navigate to="/" replace />} />

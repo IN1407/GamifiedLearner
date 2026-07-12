@@ -4,6 +4,9 @@ import type { VizKind } from '../content/types'
 const AttentionViz = lazy(() => import('./viz/AttentionViz'))
 const GradientDescentViz = lazy(() => import('./viz/GradientDescentViz'))
 const SoftmaxViz = lazy(() => import('./viz/SoftmaxViz'))
+const TokenizerViz = lazy(() => import('./viz/TokenizerViz'))
+const SimilarityViz = lazy(() => import('./viz/SimilarityViz'))
+const ChunkingViz = lazy(() => import('./viz/ChunkingViz'))
 
 export default function VizBlock({ viz, caption }: { viz: VizKind; caption?: string }) {
   return (
@@ -16,6 +19,9 @@ export default function VizBlock({ viz, caption }: { viz: VizKind; caption?: str
         {viz === 'attention' && <AttentionViz />}
         {viz === 'gradientDescent' && <GradientDescentViz />}
         {viz === 'softmax' && <SoftmaxViz />}
+        {viz === 'tokenizer' && <TokenizerViz />}
+        {viz === 'similarity' && <SimilarityViz />}
+        {viz === 'chunking' && <ChunkingViz />}
       </Suspense>
       {caption && <figcaption className="mt-2 text-center text-xs text-slate-400">{caption}</figcaption>}
     </figure>

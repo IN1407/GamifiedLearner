@@ -46,6 +46,23 @@ export interface ActivityEvent {
   xp: number
 }
 
+export interface AssessmentAttemptRecord {
+  startedAt: number
+  finishedAt: number
+  scoreFraction: number
+  earned: number
+  total: number
+}
+
+export interface AssessmentRecord {
+  assessmentId: string
+  /** best score fraction (0..1) across all attempts */
+  bestScore: number
+  passed: boolean
+  passedAt?: number
+  attempts: AssessmentAttemptRecord[]
+}
+
 interface GLSchema extends DBSchema {
   profile: { key: string; value: Profile }
   aiConfig: { key: string; value: AIConfig }
@@ -59,29 +76,42 @@ interface GLSchema extends DBSchema {
     value: ActivityEvent
     indexes: { byTs: number }
   }
+  assessments: { key: string; value: AssessmentRecord }
   meta: { key: string; value: { id: string; value: unknown } }
 }
 
 const DB_NAME = 'gamified-learner'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBPDatabase<GLSchema>> | null = null
 
 export function getDB(): Promise<IDBPDatabase<GLSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<GLSchema>(DB_NAME, DB_VERSION, {
+      // Idempotent per-store creation so this handles both fresh installs
+      // (oldVersion 0) and the v1 -> v2 upgrade without losing existing data.
       upgrade(db) {
-        db.createObjectStore('profile', { keyPath: 'id' })
-        db.createObjectStore('aiConfig', { keyPath: 'id' })
-        const progress = db.createObjectStore('progress', { keyPath: 'lessonId' })
-        progress.createIndex('byCourse', 'courseId')
-        progress.createIndex('byModule', 'moduleId')
-        const events = db.createObjectStore('events', {
-          keyPath: 'id',
-          autoIncrement: true,
-        })
-        events.createIndex('byTs', 'ts')
-        db.createObjectStore('meta', { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('profile')) {
+          db.createObjectStore('profile', { keyPath: 'id' })
+        }
+        if (!db.objectStoreNames.contains('aiConfig')) {
+          db.createObjectStore('aiConfig', { keyPath: 'id' })
+        }
+        if (!db.objectStoreNames.contains('progress')) {
+          const progress = db.createObjectStore('progress', { keyPath: 'lessonId' })
+          progress.createIndex('byCourse', 'courseId')
+          progress.createIndex('byModule', 'moduleId')
+        }
+        if (!db.objectStoreNames.contains('events')) {
+          const events = db.createObjectStore('events', { keyPath: 'id', autoIncrement: true })
+          events.createIndex('byTs', 'ts')
+        }
+        if (!db.objectStoreNames.contains('assessments')) {
+          db.createObjectStore('assessments', { keyPath: 'assessmentId' })
+        }
+        if (!db.objectStoreNames.contains('meta')) {
+          db.createObjectStore('meta', { keyPath: 'id' })
+        }
       },
     })
   }
@@ -126,6 +156,14 @@ export async function loadAllEvents(): Promise<ActivityEvent[]> {
   return (await getDB()).getAll('events')
 }
 
+// ---- assessments (checkpoint results) ----
+export async function loadAllAssessments(): Promise<AssessmentRecord[]> {
+  return (await getDB()).getAll('assessments')
+}
+export async function saveAssessment(record: AssessmentRecord): Promise<void> {
+  await (await getDB()).put('assessments', record)
+}
+
 // ---- meta (crypto key lives here) ----
 export async function getMeta<T>(id: string): Promise<T | undefined> {
   const row = await (await getDB()).get('meta', id)
@@ -142,6 +180,8 @@ export interface ExportedState {
   profile: Profile | null
   progress: LessonProgress[]
   events: ActivityEvent[]
+  /** optional for backward compatibility with pre-assessment exports */
+  assessments?: AssessmentRecord[]
 }
 
 export async function exportState(): Promise<ExportedState> {
@@ -152,29 +192,33 @@ export async function exportState(): Promise<ExportedState> {
     profile: (await db.get('profile', 'local')) ?? null,
     progress: await db.getAll('progress'),
     events: await db.getAll('events'),
+    assessments: await db.getAll('assessments'),
   }
 }
 
 export async function importState(state: ExportedState): Promise<void> {
   if (state.version !== 1) throw new Error(`Unsupported export version: ${state.version}`)
   const db = await getDB()
-  const tx = db.transaction(['profile', 'progress', 'events'], 'readwrite')
+  const tx = db.transaction(['profile', 'progress', 'events', 'assessments'], 'readwrite')
   await tx.objectStore('progress').clear()
   await tx.objectStore('events').clear()
+  await tx.objectStore('assessments').clear()
   if (state.profile) await tx.objectStore('profile').put(state.profile)
   for (const p of state.progress) await tx.objectStore('progress').put(p)
   for (const e of state.events) {
     const { id: _drop, ...rest } = e
     await tx.objectStore('events').add(rest as ActivityEvent)
   }
+  for (const a of state.assessments ?? []) await tx.objectStore('assessments').put(a)
   await tx.done
 }
 
 /** Reset learning progress only — keeps profile + AI connection. */
 export async function resetProgress(): Promise<void> {
   const db = await getDB()
-  const tx = db.transaction(['progress', 'events'], 'readwrite')
+  const tx = db.transaction(['progress', 'events', 'assessments'], 'readwrite')
   await tx.objectStore('progress').clear()
   await tx.objectStore('events').clear()
+  await tx.objectStore('assessments').clear()
   await tx.done
 }

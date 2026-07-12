@@ -1,15 +1,21 @@
 /**
  * Milestone / achievement status system.
  *
- * Design: the set of unlocked statuses is a PURE DERIVATION of learner progress
- * (the completed-lesson map that already persists in IndexedDB). Nothing stores
- * a separate "current status" counter, so the status bar and share card can
- * never drift out of sync with what the learner has actually completed.
+ * Design: the set of unlocked statuses is a PURE DERIVATION of learner state —
+ * the completed-lesson map plus the set of passed checkpoint assessments (both
+ * persisted in IndexedDB). Nothing stores a separate "current status" counter,
+ * so the status bar and share card can never drift out of sync with what the
+ * learner has actually earned.
+ *
+ * Most statuses are gated behind a checkpoint assessment (§7): you unlock the
+ * status by *passing the assessment*, not merely by scrolling through lessons.
+ * The terminal "completionist" status is still derived from finishing every
+ * lesson.
  *
  * Consequences that fall out for free:
- *  - Existing users are "backfilled" automatically — their status is recomputed
- *    from progress on load, no migration needed.
- *  - Unlock is idempotent (it's set membership derived from progress).
+ *  - Existing users are "backfilled" automatically — status is recomputed from
+ *    stored state on load, no migration needed.
+ *  - Unlock is idempotent (it's set membership derived from state).
  *  - Removing/renaming a milestone here just changes what's displayed; it can't
  *    corrupt stored state because there is no stored milestone state.
  *
@@ -22,9 +28,13 @@ import { progressKey } from './types'
 import { courses, flattenLessons, getCourse } from './index'
 
 export type MilestoneTrigger =
+  | { kind: 'assessment-passed'; assessmentId: string }
   | { kind: 'module-complete'; courseId: string; moduleId: string }
   | { kind: 'course-complete'; courseId: string }
   | { kind: 'all-courses-complete' }
+
+/** No-op default so callers that don't track assessments still type-check. */
+const NO_ASSESSMENTS: ReadonlySet<string> = new Set()
 
 export interface MilestoneDef {
   /** stable id — never rename once shipped */
@@ -49,7 +59,7 @@ export const MILESTONES: MilestoneDef[] = [
     subtitle: 'Core Python fluency: types, control flow, data structures & functions.',
     order: 10,
     icon: '🐍',
-    trigger: { kind: 'module-complete', courseId: 'course1', moduleId: 'm03-intermediate' },
+    trigger: { kind: 'assessment-passed', assessmentId: 'assess-python-core' },
   },
   {
     id: 'backend-builder',
@@ -57,7 +67,7 @@ export const MILESTONES: MilestoneDef[] = [
     subtitle: 'You can stand up a real FastAPI service from scratch.',
     order: 20,
     icon: '⚙️',
-    trigger: { kind: 'module-complete', courseId: 'course1', moduleId: 'm05-backend' },
+    trigger: { kind: 'assessment-passed', assessmentId: 'assess-backend' },
   },
   {
     id: 'transformer-internals',
@@ -65,7 +75,7 @@ export const MILESTONES: MilestoneDef[] = [
     subtitle: 'Transformers down to attention, the KV-cache and mixture-of-experts.',
     order: 30,
     icon: '🧬',
-    trigger: { kind: 'module-complete', courseId: 'course1', moduleId: 'm09-efficient-attention' },
+    trigger: { kind: 'assessment-passed', assessmentId: 'assess-transformers' },
   },
   {
     id: 'course1-complete',
@@ -73,7 +83,7 @@ export const MILESTONES: MilestoneDef[] = [
     subtitle: 'The whole zero-to-shipping Python-for-AI track, done.',
     order: 40,
     icon: '🏗️',
-    trigger: { kind: 'course-complete', courseId: 'course1' },
+    trigger: { kind: 'assessment-passed', assessmentId: 'assess-course1' },
   },
   {
     id: 'course2-complete',
@@ -81,7 +91,7 @@ export const MILESTONES: MilestoneDef[] = [
     subtitle: 'Practical AI power-usage and prompt engineering, mastered.',
     order: 50,
     icon: '🎯',
-    trigger: { kind: 'course-complete', courseId: 'course2' },
+    trigger: { kind: 'assessment-passed', assessmentId: 'assess-course2' },
   },
   {
     id: 'all-complete',
@@ -114,8 +124,18 @@ function isCourseComplete(courseId: string, progress: Progress): boolean {
   return flat.every(({ module, lesson }) => Boolean(progress[progressKey(courseId, module.id, lesson.id)]))
 }
 
-export function isMilestoneSatisfied(def: MilestoneDef, progress: Progress): boolean {
+export function getMilestone(id: string): MilestoneDef | undefined {
+  return MILESTONES.find((m) => m.id === id)
+}
+
+export function isMilestoneSatisfied(
+  def: MilestoneDef,
+  progress: Progress,
+  passed: ReadonlySet<string> = NO_ASSESSMENTS,
+): boolean {
   switch (def.trigger.kind) {
+    case 'assessment-passed':
+      return passed.has(def.trigger.assessmentId)
     case 'module-complete':
       return isModuleComplete(def.trigger.courseId, def.trigger.moduleId, progress)
     case 'course-complete':
@@ -126,19 +146,28 @@ export function isMilestoneSatisfied(def: MilestoneDef, progress: Progress): boo
 }
 
 /** All milestones the learner has earned, lowest-order first. */
-export function unlockedMilestones(progress: Progress): MilestoneDef[] {
-  return BY_ORDER.filter((m) => isMilestoneSatisfied(m, progress))
+export function unlockedMilestones(
+  progress: Progress,
+  passed: ReadonlySet<string> = NO_ASSESSMENTS,
+): MilestoneDef[] {
+  return BY_ORDER.filter((m) => isMilestoneSatisfied(m, progress, passed))
 }
 
 /** The learner's current status: highest-order unlocked milestone, or null. */
-export function currentStatus(progress: Progress): MilestoneDef | null {
-  const unlocked = unlockedMilestones(progress)
+export function currentStatus(
+  progress: Progress,
+  passed: ReadonlySet<string> = NO_ASSESSMENTS,
+): MilestoneDef | null {
+  const unlocked = unlockedMilestones(progress, passed)
   return unlocked.length ? unlocked[unlocked.length - 1] : null
 }
 
 /** The next status to aim for: lowest-order not-yet-unlocked milestone, or null. */
-export function nextStatus(progress: Progress): MilestoneDef | null {
-  return BY_ORDER.find((m) => !isMilestoneSatisfied(m, progress)) ?? null
+export function nextStatus(
+  progress: Progress,
+  passed: ReadonlySet<string> = NO_ASSESSMENTS,
+): MilestoneDef | null {
+  return BY_ORDER.find((m) => !isMilestoneSatisfied(m, progress, passed)) ?? null
 }
 
 export interface MilestoneNode {
@@ -148,23 +177,29 @@ export interface MilestoneNode {
 }
 
 /** Full progression for the status bar: every milestone with its unlock state. */
-export function milestoneProgression(progress: Progress): MilestoneNode[] {
-  const current = currentStatus(progress)
+export function milestoneProgression(
+  progress: Progress,
+  passed: ReadonlySet<string> = NO_ASSESSMENTS,
+): MilestoneNode[] {
+  const current = currentStatus(progress, passed)
   return BY_ORDER.map((m) => ({
     milestone: m,
-    unlocked: isMilestoneSatisfied(m, progress),
+    unlocked: isMilestoneSatisfied(m, progress, passed),
     current: current?.id === m.id,
   }))
 }
 
 /**
- * The milestone (if any) newly earned by going from `before` to `after`
- * progress. Returns the highest-order newly-satisfied milestone so a single
- * completion that crosses two thresholds celebrates the bigger one.
+ * The milestone (if any) newly earned by moving from one state to another.
+ * Returns the highest-order newly-satisfied milestone so a single action that
+ * crosses two thresholds celebrates the bigger one.
  */
-export function newlyEarnedMilestone(before: Progress, after: Progress): MilestoneDef | null {
-  const had = new Set(unlockedMilestones(before).map((m) => m.id))
-  const now = unlockedMilestones(after)
+export function newlyEarnedMilestone(
+  before: { progress: Progress; passed: ReadonlySet<string> },
+  after: { progress: Progress; passed: ReadonlySet<string> },
+): MilestoneDef | null {
+  const had = new Set(unlockedMilestones(before.progress, before.passed).map((m) => m.id))
+  const now = unlockedMilestones(after.progress, after.passed)
   const gained = now.filter((m) => !had.has(m.id))
   return gained.length ? gained[gained.length - 1] : null
 }

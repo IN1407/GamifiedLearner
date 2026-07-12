@@ -64,7 +64,13 @@ export interface PromptExercise {
   difficulty: Difficulty
 }
 
-export type VizKind = 'attention' | 'gradientDescent' | 'softmax'
+export type VizKind =
+  | 'attention'
+  | 'gradientDescent'
+  | 'softmax'
+  | 'tokenizer'
+  | 'similarity'
+  | 'chunking'
 
 export type Block =
   | {

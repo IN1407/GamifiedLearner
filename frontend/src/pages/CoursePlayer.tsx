@@ -8,8 +8,9 @@ import {
   moduleMasteryPct,
 } from '../content'
 import { progressKey } from '../content/types'
+import { assessmentsAfterModule } from '../content/assessments'
 import { newlyEarnedMilestone } from '../content/milestones'
-import { useStore, useStreak, useXp } from '../state/useStore'
+import { useStore, useStreak, useXp, usePassedAssessments } from '../state/useStore'
 import { levelForXp } from '../lib/gamification'
 import LessonView from '../components/LessonView'
 import { lessonContextText } from '../lib/lessonContext'
@@ -24,6 +25,7 @@ export default function CoursePlayer() {
   const completeLesson = useStore((s) => s.completeLesson)
   const xp = useXp()
   const streak = useStreak()
+  const passed = usePassedAssessments()
 
   const [navOpen, setNavOpen] = useState(false)
   const [lessonXp, setLessonXp] = useState(0)
@@ -78,7 +80,10 @@ export default function CoursePlayer() {
     // completion (derivation is pure, so we can simulate the "after" map).
     const key = progressKey(course.id, module.id, lesson.id)
     const after = { ...progress, [key]: progress[key] ?? ({ lessonId: key } as (typeof progress)[string]) }
-    const earnedMilestone = newlyEarnedMilestone(progress, after)
+    const earnedMilestone = newlyEarnedMilestone(
+      { progress, passed },
+      { progress: after, passed },
+    )
     await completeLesson({
       courseId: course.id,
       moduleId: module.id,
@@ -183,6 +188,21 @@ export default function CoursePlayer() {
                     )
                   })}
                 </ul>
+                {assessmentsAfterModule(course.id, m.id).map((a) => (
+                  <Link
+                    key={a.id}
+                    to={`/course/${course.id}/assessment/${a.id}`}
+                    onClick={() => setNavOpen(false)}
+                    className="mt-1 flex items-center gap-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2 py-1.5 text-sm font-medium text-indigo-200 hover:bg-indigo-500/20"
+                    title="Checkpoint assessment — pass it to unlock your status"
+                  >
+                    <span aria-hidden>{passed.has(a.id) ? '🏆' : '🎯'}</span>
+                    <span className="min-w-0 truncate">
+                      {a.title.replace(/^(Checkpoint|Final): /, '')}
+                      {passed.has(a.id) && ' ✓'}
+                    </span>
+                  </Link>
+                ))}
               </div>
             )
           })}
