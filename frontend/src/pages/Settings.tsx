@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { exportState, importState, type MathLevel } from '../lib/db'
 import { useStore } from '../state/useStore'
+import type { GradeLevel } from '../lib/mastery'
 import { ConnectAIStep } from './Onboarding'
 import ErrorBanner from '../components/ErrorBanner'
 
@@ -13,10 +14,23 @@ const MATH_LEVELS: { id: MathLevel; label: string }[] = [
   { id: 'grad', label: 'Graduate' },
 ]
 
+const GRADE_LEVELS: { id: GradeLevel; label: string }[] = [
+  { id: 'grade5', label: 'Grade 5' },
+  { id: 'grade6', label: 'Grade 6' },
+  { id: 'grade7', label: 'Grade 7' },
+  { id: 'grade8', label: 'Grade 8' },
+  { id: 'grade9', label: 'Grade 9' },
+  { id: 'grade10', label: 'Grade 10' },
+  { id: 'grade11', label: 'Grade 11' },
+  { id: 'grade12', label: 'Grade 12' },
+  { id: 'college', label: 'College' },
+]
+
 export default function Settings() {
   const profile = useStore((s) => s.profile)
   const aiConfig = useStore((s) => s.aiConfig)
   const setMathLevel = useStore((s) => s.setMathLevel)
+  const setGradeLevel = useStore((s) => s.setGradeLevel)
   const setCommitment = useStore((s) => s.setCommitment)
   const disconnectAI = useStore((s) => s.disconnectAI)
   const resetProgress = useStore((s) => s.resetProgress)
@@ -85,6 +99,25 @@ export default function Settings() {
           className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm"
         >
           {MATH_LEVELS.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <section id="grade-level" className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
+        <h2 className="font-bold text-slate-100">Math curriculum grade level</h2>
+        <p className="mt-1 mb-3 text-sm text-slate-400">
+          Sets the grade-based entry point for the adaptive math curriculum. Mastery evidence can still move you ahead or pull in prerequisite review.
+        </p>
+        <select
+          value={profile?.gradeLevel ?? 'grade9'}
+          onChange={(e) => setGradeLevel(e.target.value as GradeLevel)}
+          aria-label="Math curriculum grade level"
+          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm"
+        >
+          {GRADE_LEVELS.map((l) => (
             <option key={l.id} value={l.id}>
               {l.label}
             </option>

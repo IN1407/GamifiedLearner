@@ -4,12 +4,14 @@
  * activity event log that streaks are computed from (real dates, queryable).
  */
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import type { GradeLevel, TopicMastery } from './mastery'
 
 export type MathLevel = 'middle' | 'hs910' | 'hs1112' | 'college' | 'grad'
 
 export interface Profile {
   id: 'local'
   mathLevel: MathLevel
+  gradeLevel?: GradeLevel
   commitmentPerWeek: number
   onboardingComplete: boolean
   createdAt: number
@@ -96,11 +98,12 @@ interface GLSchema extends DBSchema {
   }
   assessments: { key: string; value: AssessmentRecord }
   explanations: { key: string; value: ExplanationHistory }
+  mastery: { key: string; value: TopicMastery }
   meta: { key: string; value: { id: string; value: unknown } }
 }
 
 const DB_NAME = 'gamified-learner'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 let dbPromise: Promise<IDBPDatabase<GLSchema>> | null = null
 
@@ -130,6 +133,9 @@ export function getDB(): Promise<IDBPDatabase<GLSchema>> {
         }
         if (!db.objectStoreNames.contains('explanations')) {
           db.createObjectStore('explanations', { keyPath: 'siteId' })
+        }
+        if (!db.objectStoreNames.contains('mastery')) {
+          db.createObjectStore('mastery', { keyPath: 'topicId' })
         }
         if (!db.objectStoreNames.contains('meta')) {
           db.createObjectStore('meta', { keyPath: 'id' })
@@ -184,6 +190,14 @@ export async function loadAllAssessments(): Promise<AssessmentRecord[]> {
 }
 export async function saveAssessment(record: AssessmentRecord): Promise<void> {
   await (await getDB()).put('assessments', record)
+}
+
+// ---- mastery ----
+export async function loadAllMastery(): Promise<TopicMastery[]> {
+  return (await getDB()).getAll('mastery')
+}
+export async function saveMastery(record: TopicMastery): Promise<void> {
+  await (await getDB()).put('mastery', record)
 }
 
 // ---- explanation version history ----
@@ -246,10 +260,11 @@ export async function importState(state: ExportedState): Promise<void> {
 /** Reset learning progress only — keeps profile + AI connection. */
 export async function resetProgress(): Promise<void> {
   const db = await getDB()
-  const tx = db.transaction(['progress', 'events', 'assessments', 'explanations'], 'readwrite')
+  const tx = db.transaction(['progress', 'events', 'assessments', 'explanations', 'mastery'], 'readwrite')
   await tx.objectStore('progress').clear()
   await tx.objectStore('events').clear()
   await tx.objectStore('assessments').clear()
   await tx.objectStore('explanations').clear()
+  await tx.objectStore('mastery').clear()
   await tx.done
 }
