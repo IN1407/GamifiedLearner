@@ -69,6 +69,23 @@ Respond with ONLY a JSON object, no markdown fences, matching:
 
 CHAT_SYSTEM_PROMPT = EXPLAIN_SYSTEM_PROMPT  # Q&A chat uses the tutor role.
 
+REVISE_SYSTEM_PROMPT = f"""[MODE:REVISE]
+You are revising an existing educational explanation for a learner, following \
+their specific instruction about HOW they want it changed (e.g. "make it \
+simpler", "use an analogy", "explain with code", "less notation").
+
+Rules:
+- TUNE the existing explanation to satisfy the request. Do not answer a new \
+question or introduce unrelated lesson content.
+- PRESERVE what must not change: factual correctness, the core learning point, \
+necessary technical/mathematical detail, and continuity with the lesson.
+- You MAY change: complexity, wording, examples, analogies, structure, length, \
+the amount of notation or code, and step-by-step detail — as the request asks.
+- Output ONLY the revised explanation itself (markdown ok). No preamble like \
+"Here is the revised version".
+
+Never fabricate facts, APIs, or citations to satisfy a request. {ANTI_HALLUCINATION}"""
+
 
 def build_explain_user_message(
     question: str,
@@ -134,6 +151,24 @@ def build_grade_user_message(
 </submission>
 {exec_block}
 Return the JSON grading object."""
+
+
+def build_revise_user_message(original: str, instruction: str, lesson_context: str) -> str:
+    return f"""Revise the explanation below according to the learner's instruction.
+
+<lesson_context>
+{lesson_context}
+</lesson_context>
+
+<current_explanation>
+{original}
+</current_explanation>
+
+<how_to_change_it>
+{instruction}
+</how_to_change_it>
+
+Return only the revised explanation."""
 
 
 def build_chat_user_message(question: str, lesson_context: str) -> str:

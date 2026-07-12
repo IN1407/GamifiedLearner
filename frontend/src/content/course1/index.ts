@@ -12,6 +12,7 @@ import { module10 } from './module10'
 import { module11 } from './module11'
 import { module12 } from './module12'
 import { module13 } from './module13'
+import { module14 } from './module14'
 
 export const course1: Course = {
   id: 'course1',
@@ -33,6 +34,7 @@ export const course1: Course = {
     module10,
     module11,
     module12,
+    module14,
     module13,
   ],
 }

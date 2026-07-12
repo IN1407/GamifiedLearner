@@ -124,6 +124,23 @@ export async function aiExplain(
   return res.explanation
 }
 
+export async function aiReviseExplanation(
+  config: AIConfig,
+  payload: { original: string; instruction: string; lessonContext: string },
+): Promise<string> {
+  const auth = await authFields(config)
+  const res = await request<{ explanation: string }>('/api/ai/revise', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...auth,
+      original: payload.original,
+      instruction: payload.instruction,
+      lesson_context: payload.lessonContext,
+    }),
+  })
+  return res.explanation
+}
+
 export async function aiChat(
   config: AIConfig,
   question: string,

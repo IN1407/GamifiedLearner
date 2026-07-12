@@ -64,6 +64,7 @@ export default function LessonView({
                 key={`${lesson.id}-${key}`}
                 quiz={block.quiz}
                 lessonContext={context}
+                lessonId={lesson.id}
                 onXpChange={(xp) => setXpByBlock((s) => ({ ...s, [key]: xp }))}
                 onCompleteChange={(c) => setDoneByBlock((s) => ({ ...s, [key]: c }))}
               />

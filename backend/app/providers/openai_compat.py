@@ -113,3 +113,38 @@ class MiniMaxProvider(OpenAICompatProvider):
     @classmethod
     def default_base_url(cls) -> str:
         return "https://api.minimax.io/v1"
+
+
+class LlamaCppProvider(OpenAICompatProvider):
+    """Local llama.cpp via its OpenAI-compatible server (keyless).
+
+    Run a model with `python -m llama_cpp.server --model your-model.gguf`
+    (from `pip install "llama-cpp-python[server]"`), which serves the OpenAI
+    wire protocol on http://localhost:8080/v1 — so it reuses this adapter
+    entirely. No API key, no per-token cost, fully offline. We prefer server
+    mode over loading the model in-process because in-process loading would
+    block the request worker; the server runs the model in its own process.
+    """
+
+    name = "llamacpp"
+
+    @classmethod
+    def default_base_url(cls) -> str:
+        return "http://localhost:8080/v1"
+
+    def _headers(self) -> dict[str, str]:
+        # Keyless local server — send auth only if the user set one.
+        return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+
+    async def list_models(self) -> list[str]:
+        try:
+            return await super().list_models()
+        except ProviderError as e:
+            if e.error_type == "network":
+                raise ProviderError(
+                    "network",
+                    "Could not reach a llama.cpp server. Start one with "
+                    '`python -m llama_cpp.server --model your-model.gguf` '
+                    f"(looked at {self.base_url}).",
+                )
+            raise

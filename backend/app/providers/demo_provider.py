@@ -33,9 +33,22 @@ class DemoProvider(LLMProvider):
 
         if "[MODE:GRADE]" in system:
             return self._grade(user)
+        if "[MODE:REVISE]" in system:
+            return self._revise(user)
         if "[MODE:EXPLAIN]" in system:
             return self._explain(user)
         return self._chat(user)
+
+    def _revise(self, user: str) -> str:
+        instruction = _extract("how_to_change_it", user) or "your request"
+        original = _extract("current_explanation", user) or "the explanation"
+        return (
+            f"**Demo mode — revised for: _{instruction}_** (connect a real AI provider "
+            f"in Settings for a genuine rewrite).\n\n"
+            f"Here's the same idea, adjusted. {original[:400]}\n\n"
+            f"*(A real model would rewrite this to satisfy “{instruction[:120]}” while "
+            f"keeping the facts and the learning point intact.)*"
+        )
 
     def _explain(self, user: str) -> str:
         question = _extract("question", user) or "the question"

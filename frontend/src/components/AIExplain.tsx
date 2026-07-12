@@ -1,21 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { aiExplain } from '../lib/api'
+import { loadExplanation, saveExplanation, type ExplanationHistory } from '../lib/db'
+import { newHistory } from '../lib/explanationHistory'
 import { useStore } from '../state/useStore'
-import Markdown from './Markdown'
 import ErrorBanner from './ErrorBanner'
+import ExplanationView from './ExplanationView'
 
 /**
  * "AI Explain" — only ever rendered after a wrong answer (the parent quiz
- * enforces that), never pre-emptively and never for correct answers.
+ * enforces that). The first explanation becomes Version 1 of a persistent
+ * history; the learner can then request revisions and page through versions,
+ * and the whole history survives a reload (IndexedDB, keyed by siteId).
  */
 export default function AIExplain({
+  siteId,
   question,
   choices,
   userAnswer,
   correctAnswer,
   lessonContext,
 }: {
+  siteId: string
   question: string
   choices: string[]
   userAnswer: string
@@ -23,9 +29,27 @@ export default function AIExplain({
   lessonContext: string
 }) {
   const aiConfig = useStore((s) => s.aiConfig)
+  const [history, setHistory] = useState<ExplanationHistory | null>(null)
   const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle')
-  const [explanation, setExplanation] = useState('')
   const [error, setError] = useState<unknown>(null)
+  const [restored, setRestored] = useState(false)
+
+  // Restore any persisted explanation history for this site on mount.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const existing = await loadExplanation(siteId)
+      if (cancelled) return
+      if (existing && existing.versions.length) {
+        setHistory(existing)
+        setState('done')
+      }
+      setRestored(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [siteId])
 
   if (!aiConfig) {
     return (
@@ -38,18 +62,17 @@ export default function AIExplain({
     )
   }
 
+  const persist = async (h: ExplanationHistory) => {
+    setHistory(h)
+    await saveExplanation(h)
+  }
+
   const fetchExplanation = async () => {
     setState('loading')
     setError(null)
     try {
-      const text = await aiExplain(aiConfig, {
-        question,
-        choices,
-        userAnswer,
-        correctAnswer,
-        lessonContext,
-      })
-      setExplanation(text)
+      const text = await aiExplain(aiConfig, { question, choices, userAnswer, correctAnswer, lessonContext })
+      await persist(newHistory(siteId, text))
       setState('done')
     } catch (e) {
       setError(e)
@@ -59,7 +82,7 @@ export default function AIExplain({
 
   return (
     <div className="mt-3">
-      {state !== 'done' && (
+      {restored && state !== 'done' && (
         <button
           onClick={fetchExplanation}
           disabled={state === 'loading'}
@@ -76,13 +99,8 @@ export default function AIExplain({
         </button>
       )}
       <ErrorBanner error={error} onRetry={fetchExplanation} onDismiss={() => setError(null)} />
-      {state === 'done' && (
-        <div className="mt-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-indigo-400">
-            AI tutor
-          </p>
-          <Markdown md={explanation} />
-        </div>
+      {state === 'done' && history && (
+        <ExplanationView history={history} onChange={persist} aiConfig={aiConfig} lessonContext={lessonContext} />
       )}
     </div>
   )

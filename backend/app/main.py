@@ -48,6 +48,7 @@ PROVIDER_LABELS = {
     "moonshot": ("Moonshot (Kimi)", "sk-..."),
     "minimax": ("MiniMax", ""),
     "ollama": ("Ollama (local)", ""),
+    "llamacpp": ("llama.cpp (local)", ""),
     "demo": ("Demo mode (no key)", ""),
 }
 
@@ -104,6 +105,22 @@ async def ai_explain(req: schemas.ExplainRequest):
     ]
     text = await provider.chat(req.model, messages, max_tokens=1024)
     return schemas.ExplainResponse(explanation=text)
+
+
+@app.post("/api/ai/revise", response_model=schemas.ReviseResponse)
+async def ai_revise(req: schemas.ReviseRequest):
+    provider = get_provider(req.provider, req.api_key, req.base_url)
+    messages = [
+        ChatMessage("system", prompts.REVISE_SYSTEM_PROMPT),
+        ChatMessage(
+            "user",
+            prompts.build_revise_user_message(
+                req.original[:8000], req.instruction[:1000], req.lesson_context[:8000]
+            ),
+        ),
+    ]
+    text = await provider.chat(req.model, messages, max_tokens=1024)
+    return schemas.ReviseResponse(explanation=text)
 
 
 @app.post("/api/ai/chat", response_model=schemas.ChatResponse)

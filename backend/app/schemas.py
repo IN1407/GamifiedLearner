@@ -31,6 +31,17 @@ class ExplainResponse(BaseModel):
     explanation: str
 
 
+class ReviseRequest(ProviderAuth):
+    model: str
+    original: str
+    instruction: str
+    lesson_context: str = ""
+
+
+class ReviseResponse(BaseModel):
+    explanation: str
+
+
 class ChatTurn(BaseModel):
     role: str  # "user" | "assistant"
     content: str
