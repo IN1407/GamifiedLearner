@@ -3,6 +3,8 @@ import { courses, courseProgressPct, firstIncomplete } from '../content'
 import { useStore, useStreak, useXp, usePassedAssessments } from '../state/useStore'
 import { levelForXp } from '../lib/gamification'
 import StatusBar from '../components/StatusBar'
+import SaveStateIndicator from '../components/SaveStateIndicator'
+import { recommendMathTopic } from '../lib/mastery'
 
 const MATH_LEVEL_LABELS: Record<string, string> = {
   middle: 'Middle school',
@@ -20,6 +22,8 @@ export default function Home() {
   const streak = useStreak()
   const passed = usePassedAssessments()
   const { level, intoLevel, needed } = levelForXp(xp)
+  const mastery = useStore((s) => s.mastery)
+  const recommendation = recommendMathTopic(profile?.gradeLevel ?? 'grade9', mastery)
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -30,12 +34,15 @@ export default function Home() {
           </h1>
           <p className="mt-1 text-slate-400">From zero Python to AI internals — one streak at a time.</p>
         </div>
+        <div className="flex items-center gap-3">
+          <SaveStateIndicator />
         <Link
           to="/settings"
           className="self-start rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 shadow-sm hover:bg-slate-800/60"
         >
           ⚙️ Settings
         </Link>
+        </div>
       </header>
 
       {/* Stats row */}
@@ -78,6 +85,13 @@ export default function Home() {
           🤖 {aiConfig ? `AI: ${aiConfig.provider} / ${aiConfig.model}` : 'Connect your AI →'}
         </Link>
       </div>
+
+      <section className="mb-8 rounded-3xl border border-slate-800 bg-slate-900 p-5" aria-label="Adaptive math recommendation">
+        <p className="text-sm font-semibold text-indigo-300">Adaptive math loop</p>
+        <h2 className="mt-1 text-xl font-bold text-slate-100">Next math focus: {recommendation.topic.title}</h2>
+        <p className="mt-2 text-sm text-slate-400">{recommendation.reason}</p>
+        <p className="mt-2 text-xs text-slate-500">AI connection: {recommendation.topic.aiUses.join('; ')}</p>
+      </section>
 
       {/* Course cards */}
       <section aria-label="Courses" className="grid gap-5 md:grid-cols-2">
