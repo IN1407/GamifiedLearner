@@ -3,13 +3,19 @@ import { MILESTONES, currentStatus, milestoneProgression, nextStatus } from '../
 
 /**
  * Status progression bar. Rendered straight from the milestone engine, which
- * derives everything from the completed-lesson map — so it can never drift out
- * of sync with the learner's real achievements.
+ * derives everything from stored progress + passed assessments — so it can
+ * never drift out of sync with the learner's real achievements.
  */
-export default function StatusBar({ progress }: { progress: Record<string, LessonProgress> }) {
-  const nodes = milestoneProgression(progress)
-  const current = currentStatus(progress)
-  const next = nextStatus(progress)
+export default function StatusBar({
+  progress,
+  passed,
+}: {
+  progress: Record<string, LessonProgress>
+  passed: ReadonlySet<string>
+}) {
+  const nodes = milestoneProgression(progress, passed)
+  const current = currentStatus(progress, passed)
+  const next = nextStatus(progress, passed)
   const unlockedCount = nodes.filter((n) => n.unlocked).length
 
   return (

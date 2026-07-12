@@ -1,6 +1,10 @@
 # GamifiedLearner
 
-A gamified e-learning platform that takes you from your first line of Python to reading modern attention papers — then teaches you to *use* AI fluently. Duolingo-style streaks and XP, unlockable milestone **statuses** (Pythonista → Backend Wrangler → Attention Alchemist → Neural Architect → Prompt Whisperer → AI Power User), quizzes with AI-explained mistakes, code exercises **verified statically (your code is never executed) and reviewed by AI**, interactive visualizations, and free-text exercises graded by your own connected AI model — all in a sleek dark UI.
+A gamified e-learning platform that takes you from your first line of Python to reading modern attention papers — then teaches you to *use* AI fluently. Duolingo-style streaks and XP, unlockable milestone **statuses** earned by passing **checkpoint assessments** (Pythonista → Backend Wrangler → Attention Alchemist → Neural Architect → Prompt Whisperer → AI Power User), quizzes with AI-explained mistakes, code exercises **verified statically (your code is never executed) and reviewed by AI**, interactive visualizations (tokenizer, vector similarity, chunking, attention, gradient descent, softmax), a hands-on **RAG** build (chunking → embeddings → retrieval → context → generation), and free-text exercises graded by your own connected AI model — all in a sleek dark UI.
+
+### Checkpoint assessments
+
+After each major checkpoint you take a mixed **quiz + coding** assessment. Score **40%+** (a single centralized threshold) to unlock the matching status. Scoring is deterministic — quiz answers graded exactly, code checked by static structural analysis — so it works even in demo mode; the connected AI is optional/advisory and never decides pass/fail. Unlimited retries, your best score is kept, and a failed attempt shows exactly which modules to review.
 
 Two courses:
 
@@ -72,10 +76,10 @@ Both prompts live in `backend/app/prompts.py` and are intentionally separate.
 
 ```bash
 # Backend: unit + API + static syntax verification (incl. proof learner code is never executed)
-cd backend && .venv/bin/python -m pytest tests/ -q      # 74 tests
+cd backend && .venv/bin/python -m pytest tests/ -q      # 76 tests
 
 # Frontend: gamification math, content integrity, share-card rendering, API client
-cd frontend && npm test                                  # 43 tests
+cd frontend && npm test                                  # 67 tests
 
 # End-to-end (drives the real app in Chromium; needs both servers running)
 cd frontend && node e2e-smoke.mjs                        # 14 checks

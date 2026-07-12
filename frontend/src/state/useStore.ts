@@ -7,15 +7,18 @@ import {
   addEvent,
   clearAIConfig as dbClearAIConfig,
   loadAIConfig,
+  loadAllAssessments,
   loadAllEvents,
   loadAllProgress,
   loadProfile,
   resetProgress as dbResetProgress,
   saveAIConfig,
+  saveAssessment,
   saveLessonProgress,
   saveProfile,
   type ActivityEvent,
   type AIConfig,
+  type AssessmentRecord,
   type LessonProgress,
   type MathLevel,
   type Profile,
@@ -30,6 +33,7 @@ interface StoreState {
   aiConfig: AIConfig | null
   progress: Record<string, LessonProgress>
   events: ActivityEvent[]
+  assessments: Record<string, AssessmentRecord>
 
   hydrate: () => Promise<void>
   completeOnboarding: (mathLevel: MathLevel, commitment: number) => Promise<void>
@@ -49,6 +53,16 @@ interface StoreState {
     xp: number
     isCheckpoint: boolean
   }) => Promise<void>
+  /** Records an assessment attempt; returns true if this attempt newly passed. */
+  recordAssessmentAttempt: (opts: {
+    assessmentId: string
+    courseId: string
+    scoreFraction: number
+    earned: number
+    total: number
+    passed: boolean
+    xpOnPass: number
+  }) => Promise<boolean>
   resetProgress: () => Promise<void>
   reloadFromDB: () => Promise<void>
 }
@@ -59,22 +73,27 @@ export const useStore = create<StoreState>((set, get) => ({
   aiConfig: null,
   progress: {},
   events: [],
+  assessments: {},
 
   hydrate: async () => {
-    const [profile, aiConfig, progressList, events] = await Promise.all([
+    const [profile, aiConfig, progressList, events, assessmentList] = await Promise.all([
       loadProfile(),
       loadAIConfig(),
       loadAllProgress(),
       loadAllEvents(),
+      loadAllAssessments(),
     ])
     const progress: Record<string, LessonProgress> = {}
     for (const p of progressList) progress[p.lessonId] = p
+    const assessments: Record<string, AssessmentRecord> = {}
+    for (const a of assessmentList) assessments[a.assessmentId] = a
     set({
       hydrated: true,
       profile: profile ?? null,
       aiConfig: aiConfig ?? null,
       progress,
       events,
+      assessments,
     })
   },
 
@@ -158,9 +177,38 @@ export const useStore = create<StoreState>((set, get) => ({
     }))
   },
 
+  recordAssessmentAttempt: async ({ assessmentId, courseId, scoreFraction, earned, total, passed, xpOnPass }) => {
+    const now = Date.now()
+    const prev = get().assessments[assessmentId]
+    const wasPassed = prev?.passed ?? false
+    const newlyPassed = passed && !wasPassed
+    const record: AssessmentRecord = {
+      assessmentId,
+      bestScore: Math.max(prev?.bestScore ?? 0, scoreFraction),
+      passed: wasPassed || passed,
+      passedAt: prev?.passedAt ?? (passed ? now : undefined),
+      attempts: [
+        ...(prev?.attempts ?? []),
+        { startedAt: now, finishedAt: now, scoreFraction, earned, total },
+      ],
+    }
+    await saveAssessment(record)
+    // Award XP + a streak-counting event only the first time it's passed.
+    let event: ActivityEvent | null = null
+    if (newlyPassed && xpOnPass > 0) {
+      event = { ts: now, type: 'checkpoint_completed', courseId, lessonId: `assessment/${assessmentId}`, xp: xpOnPass }
+      await addEvent(event)
+    }
+    set((s) => ({
+      assessments: { ...s.assessments, [assessmentId]: record },
+      events: event ? [...s.events, event] : s.events,
+    }))
+    return newlyPassed
+  },
+
   resetProgress: async () => {
     await dbResetProgress()
-    set({ progress: {}, events: [] })
+    set({ progress: {}, events: [], assessments: {} })
   },
 
   reloadFromDB: async () => {
@@ -178,4 +226,16 @@ export function useStreak(): StreakInfo {
   const events = useStore((s) => s.events)
   const commitment = useStore((s) => s.profile?.commitmentPerWeek ?? 3)
   return computeStreak(events, commitment)
+}
+
+/** Set of assessment ids the learner has passed — drives milestone unlocks. */
+export function passedAssessmentIds(assessments: Record<string, AssessmentRecord>): Set<string> {
+  const s = new Set<string>()
+  for (const [id, rec] of Object.entries(assessments)) if (rec.passed) s.add(id)
+  return s
+}
+
+export function usePassedAssessments(): Set<string> {
+  const assessments = useStore((s) => s.assessments)
+  return passedAssessmentIds(assessments)
 }

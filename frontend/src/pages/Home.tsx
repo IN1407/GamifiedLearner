@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { courses, courseProgressPct, firstIncomplete } from '../content'
-import { useStore, useStreak, useXp } from '../state/useStore'
+import { useStore, useStreak, useXp, usePassedAssessments } from '../state/useStore'
 import { levelForXp } from '../lib/gamification'
 import StatusBar from '../components/StatusBar'
 
@@ -18,6 +18,7 @@ export default function Home() {
   const progress = useStore((s) => s.progress)
   const xp = useXp()
   const streak = useStreak()
+  const passed = usePassedAssessments()
   const { level, intoLevel, needed } = levelForXp(xp)
 
   return (
@@ -61,7 +62,7 @@ export default function Home() {
       </section>
 
       {/* Status progression (derived from milestones) */}
-      <StatusBar progress={progress} />
+      <StatusBar progress={progress} passed={passed} />
 
       <div className="mb-8 flex flex-wrap gap-3 text-sm">
         <Link

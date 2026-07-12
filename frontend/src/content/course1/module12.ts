@@ -6,6 +6,151 @@ export const module12: Module = {
   summary: 'Embeddings, vector search, chunking, and the retrieve-then-generate pipeline.',
   lessons: [
     {
+      id: 'chunking-context',
+      title: 'Chunking & Context Construction',
+      kind: 'lesson',
+      blocks: [
+        {
+          type: 'md',
+          md: String.raw`
+## The RAG pipeline, end to end
+
+Retrieval-Augmented Generation grounds a model in **your** documents so it can
+answer questions it was never trained on — and cite where the answer came from.
+The whole pipeline is just seven steps:
+
+1. **Load** a source document (here, a plain \`.txt\` file).
+2. **Chunk** it into passages small enough to embed and retrieve.
+3. **Embed** each chunk into a vector.
+4. **Store** the vectors (a "vector store" — even a plain list works to learn).
+5. **Retrieve** the chunks most similar to the question.
+6. **Build context** — stitch the retrieved chunks into the prompt.
+7. **Generate** the final answer with a provider API, grounded in that context.
+
+This lesson builds steps **2** and **6** — the two that people most often get
+wrong. The next lesson covers embeddings, similarity, and retrieval (steps 3–5).
+
+## Why chunk?
+
+Models have a finite context window, embeddings blur meaning across long text,
+and retrieval is sharper on focused passages. So we split the document into
+overlapping windows. **Overlap** matters: without it, a sentence split across a
+boundary loses its meaning in both chunks. A little overlap (say 10–20%) keeps
+ideas whole.
+
+A common **failure case**: chunks that are too large retrieve irrelevant text;
+too small and they lose context. Overlap of zero drops boundary-spanning facts.
+`,
+        },
+        {
+          type: 'viz',
+          viz: 'chunking',
+          caption: 'Slide the size and overlap to see chunk boundaries move over real text.',
+        },
+        {
+          type: 'quiz',
+          quiz: {
+            id: 'q-chunking',
+            title: 'Chunking check',
+            questions: [
+              {
+                kind: 'mcq',
+                id: 'ck1',
+                prompt: 'Why do we add **overlap** between chunks?',
+                choices: [
+                  'So facts that span a chunk boundary are not lost',
+                  'To make chunks bigger for no reason',
+                  'To use more memory',
+                  'Overlap is never useful',
+                ],
+                answerIndex: 0,
+                difficulty: 1,
+              },
+              {
+                kind: 'mcq',
+                id: 'ck2',
+                prompt: 'Chunks that are **too large** tend to…',
+                choices: [
+                  'retrieve irrelevant text along with the answer',
+                  'always improve accuracy',
+                  'remove the need for embeddings',
+                  'make retrieval impossible',
+                ],
+                answerIndex: 0,
+                difficulty: 2,
+              },
+            ],
+          },
+        },
+        {
+          type: 'exercise',
+          exercise: {
+            id: 'ex-chunk-text',
+            title: 'Chunk a document',
+            instructions: String.raw`
+Implement \`chunk_text(text, chunk_size, overlap)\`:
+
+- Return a list of substrings of length \`chunk_size\`, stepping forward by
+  \`chunk_size - overlap\` characters each time.
+- The final chunk may be shorter than \`chunk_size\`.
+- An empty string returns \`[]\`.
+
+Example: \`chunk_text("abcdef", 3, 1)\` → \`["abc", "cde", "ef"]\`
+`,
+            starterCode: `def chunk_text(text, chunk_size, overlap):
+    # step forward by (chunk_size - overlap) each time
+    ...
+`,
+            tests: [
+              { name: 'no overlap tiles exactly', code: 'assert chunk_text("abcdef", 3, 0) == ["abc", "def"]' },
+              { name: 'overlap steps by size-overlap', code: 'assert chunk_text("abcdef", 3, 1) == ["abc", "cde", "ef"]' },
+              { name: 'empty text', code: 'assert chunk_text("", 4, 0) == []' },
+              { name: 'last chunk can be short', code: 'assert chunk_text("abcd", 3, 0) == ["abc", "d"]' },
+            ],
+            requirements: { mustDefine: [{ name: 'chunk_text', minArgs: 3 }] },
+            difficulty: 2,
+          },
+        },
+        {
+          type: 'exercise',
+          exercise: {
+            id: 'ex-build-context',
+            title: 'Build the prompt context',
+            instructions: String.raw`
+Once you've retrieved the best chunks, you assemble them into the prompt.
+Implement \`build_context(chunks, question)\` that returns a single string:
+
+- Number each chunk as a source, e.g. \`"[1] ...text..."\`, one per line.
+- End with the learner's \`question\`.
+
+The exact wording is up to you — the goal is a grounded prompt the model can
+answer from. (Your code is checked statically, then you can ask the AI to review
+whether your prompt is well-designed.)
+`,
+            starterCode: `def build_context(chunks, question):
+    # return a prompt string with numbered sources + the question
+    ...
+`,
+            tests: [
+              {
+                name: 'includes every chunk and the question',
+                code: 'out = build_context(["alpha fact", "beta fact"], "which fact?")\nassert "alpha fact" in out and "beta fact" in out and "which fact?" in out',
+              },
+              {
+                name: 'numbers the sources',
+                code: 'out = build_context(["x"], "q")\nassert "1" in out',
+              },
+            ],
+            requirements: { mustDefine: [{ name: 'build_context', minArgs: 2 }] },
+            aiFeedback: true,
+            rubric:
+              'Assess whether the assembled prompt is well-designed for grounded RAG: are sources clearly delimited and numbered, is the question clearly separated, and would the format discourage the model from answering outside the provided context? Judge the design, not just that it runs.',
+            difficulty: 2,
+          },
+        },
+      ],
+    },
+    {
       id: 'embeddings-retrieval',
       title: 'Embeddings & Vector Search',
       kind: 'lesson',
@@ -45,6 +190,11 @@ Whole documents are too long to embed usefully (one vector can't represent 40 pa
 - Solid default: **200–500 tokens, split on paragraph/heading boundaries, 10–15% overlap** so facts straddling a boundary survive in at least one chunk.
 - Respect structure when you have it — split markdown on headings, code on functions — and store metadata (source, section) so answers can cite.
 `,
+        },
+        {
+          type: 'viz',
+          viz: 'similarity',
+          caption: 'Cosine similarity in 2D: related words point in similar directions.',
         },
         {
           type: 'quiz',

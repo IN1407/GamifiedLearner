@@ -5,6 +5,7 @@ import { progressKey } from './types'
 import {
   MILESTONES,
   currentStatus,
+  getMilestone,
   milestoneProgression,
   newlyEarnedMilestone,
   nextStatus,
@@ -24,11 +25,6 @@ function mark(courseId: string, moduleId: string, lessonId: string): LessonProgr
   }
 }
 
-function completeModule(progress: Progress, courseId: string, moduleId: string): void {
-  const module = getCourse(courseId)!.modules.find((m) => m.id === moduleId)!
-  for (const l of module.lessons) progress[progressKey(courseId, moduleId, l.id)] = mark(courseId, moduleId, l.id)
-}
-
 function completeCourse(progress: Progress, courseId: string): void {
   for (const { module, lesson } of flattenLessons(getCourse(courseId)!)) {
     progress[progressKey(courseId, module.id, lesson.id)] = mark(courseId, module.id, lesson.id)
@@ -43,94 +39,81 @@ describe('milestones config', () => {
     expect(orders).toEqual([...orders].sort((a, b) => a - b))
     expect(new Set(orders).size).toBe(orders.length)
   })
+
+  it('every non-terminal milestone is gated on a checkpoint assessment', () => {
+    for (const m of MILESTONES) {
+      if (m.id === 'all-complete') continue
+      expect(m.trigger.kind).toBe('assessment-passed')
+    }
+  })
 })
 
-describe('status derivation', () => {
-  it('empty progress: no status, first milestone is the next target', () => {
-    const p: Progress = {}
-    expect(unlockedMilestones(p)).toEqual([])
-    expect(currentStatus(p)).toBeNull()
-    expect(nextStatus(p)!.id).toBe('python-core')
+describe('status derivation from passed assessments', () => {
+  const empty: Progress = {}
+
+  it('empty state: no status, python-core is the first target', () => {
+    expect(currentStatus(empty, new Set())).toBeNull()
+    expect(nextStatus(empty, new Set())!.id).toBe('python-core')
   })
 
-  it('completing an early module unlocks its milestone as current', () => {
-    const p: Progress = {}
-    completeModule(p, 'course1', 'm03-intermediate')
-    expect(currentStatus(p)!.id).toBe('python-core')
-    expect(nextStatus(p)!.id).toBe('backend-builder')
+  it('passing the python-core assessment unlocks Pythonista', () => {
+    const passed = new Set(['assess-python-core'])
+    expect(currentStatus(empty, passed)!.id).toBe('python-core')
+    expect(nextStatus(empty, passed)!.id).toBe('backend-builder')
   })
 
-  it('a partially-complete module does NOT unlock its milestone', () => {
-    const p: Progress = {}
-    completeModule(p, 'course1', 'm03-intermediate')
-    // remove one lesson to break completeness
-    const someKey = Object.keys(p)[0]
-    delete p[someKey]
-    expect(unlockedMilestones(p).some((m) => m.id === 'python-core')).toBe(false)
-  })
-
-  it('finishing course 1 makes course1-complete the current status', () => {
+  it('completing lessons alone does NOT unlock an assessment-gated status', () => {
     const p: Progress = {}
     completeCourse(p, 'course1')
-    expect(currentStatus(p)!.id).toBe('course1-complete')
-    // all earlier module milestones are also unlocked (highest-order wins as current)
-    const ids = unlockedMilestones(p).map((m) => m.id)
-    expect(ids).toContain('python-core')
-    expect(ids).toContain('backend-builder')
-    expect(ids).toContain('transformer-internals')
-    expect(nextStatus(p)!.id).toBe('course2-complete')
+    // no assessments passed => no assessment-gated milestone
+    const ids = unlockedMilestones(p, new Set()).map((m) => m.id)
+    expect(ids).not.toContain('python-core')
+    expect(ids).not.toContain('course1-complete')
   })
 
-  it('finishing every course unlocks the terminal AI Power User status', () => {
+  it('the terminal status is still earned by finishing every lesson', () => {
     const p: Progress = {}
     for (const c of courses) completeCourse(p, c.id)
-    expect(currentStatus(p)!.id).toBe('all-complete')
-    expect(nextStatus(p)).toBeNull()
-    // every milestone unlocked
-    expect(unlockedMilestones(p).length).toBe(MILESTONES.length)
+    const ids = unlockedMilestones(p, new Set()).map((m) => m.id)
+    expect(ids).toContain('all-complete')
+    expect(currentStatus(p, new Set())!.id).toBe('all-complete')
+  })
+
+  it('highest-order passed assessment wins as current status', () => {
+    const passed = new Set(['assess-python-core', 'assess-backend', 'assess-transformers'])
+    expect(currentStatus(empty, passed)!.id).toBe('transformer-internals')
+    expect(nextStatus(empty, passed)!.id).toBe('course1-complete')
   })
 })
 
 describe('newlyEarnedMilestone', () => {
-  it('detects the milestone crossed by the last lesson of course 1', () => {
-    const after: Progress = {}
-    completeCourse(after, 'course1')
-    // "before" = everything except the final lesson
-    const flat = flattenLessons(getCourse('course1')!)
-    const last = flat[flat.length - 1]
-    const before: Progress = { ...after }
-    delete before[progressKey('course1', last.module.id, last.lesson.id)]
-
-    const earned = newlyEarnedMilestone(before, after)
-    expect(earned!.id).toBe('course1-complete')
+  it('detects the milestone crossed by passing an assessment', () => {
+    const before = { progress: {}, passed: new Set<string>() }
+    const after = { progress: {}, passed: new Set(['assess-python-core']) }
+    expect(newlyEarnedMilestone(before, after)!.id).toBe('python-core')
   })
 
-  it('returns null when no new milestone is crossed', () => {
-    const p: Progress = {}
-    completeModule(p, 'course1', 'm01-fundamentals')
-    expect(newlyEarnedMilestone(p, p)).toBeNull()
-  })
-
-  it('is idempotent — re-completing an already-unlocked milestone earns nothing', () => {
-    const before: Progress = {}
-    completeModule(before, 'course1', 'm03-intermediate')
-    const after: Progress = { ...before }
-    // add an unrelated completed lesson that does not finish a new module
-    after[progressKey('course1', 'm04-tooling', 'zzz-not-real')] = mark('course1', 'm04-tooling', 'zzz')
-    expect(newlyEarnedMilestone(before, after)).toBeNull()
+  it('returns null when nothing new is crossed', () => {
+    const passed = new Set(['assess-python-core'])
+    expect(newlyEarnedMilestone({ progress: {}, passed }, { progress: {}, passed })).toBeNull()
   })
 })
 
 describe('milestoneProgression', () => {
   it('flags unlocked and current nodes consistently', () => {
-    const p: Progress = {}
-    completeModule(p, 'course1', 'm03-intermediate')
-    const nodes = milestoneProgression(p)
+    const passed = new Set(['assess-python-core'])
+    const nodes = milestoneProgression({}, passed)
     expect(nodes).toHaveLength(MILESTONES.length)
     const current = nodes.filter((n) => n.current)
     expect(current).toHaveLength(1)
     expect(current[0].milestone.id).toBe('python-core')
-    expect(nodes.find((n) => n.milestone.id === 'python-core')!.unlocked).toBe(true)
     expect(nodes.find((n) => n.milestone.id === 'backend-builder')!.unlocked).toBe(false)
+  })
+})
+
+describe('getMilestone', () => {
+  it('resolves a milestone by id', () => {
+    expect(getMilestone('course1-complete')!.title).toBe('Neural Architect')
+    expect(getMilestone('nope')).toBeUndefined()
   })
 })

@@ -346,6 +346,24 @@ SOLUTIONS: list[tuple[str, str, list[dict]]] = [
             {"name": "d", "code": 'out = answer_query("password", ["a password chunk", "unrelated"], lambda p: "the answer")\nassert out["answer"] == "the answer" and out["sources"][0] == "a password chunk"'},
         ],
     ),
+    (
+        "ex-chunk-text",
+        "def chunk_text(text, chunk_size, overlap):\n    if not text:\n        return []\n    step = chunk_size - overlap\n    out = []\n    i = 0\n    while i < len(text):\n        out.append(text[i:i + chunk_size])\n        i += step\n    return out",
+        [
+            {"name": "a", "code": 'assert chunk_text("abcdef", 3, 0) == ["abc", "def"]'},
+            {"name": "b", "code": 'assert chunk_text("abcdef", 3, 1) == ["abc", "cde", "ef"]'},
+            {"name": "c", "code": 'assert chunk_text("", 4, 0) == []'},
+            {"name": "d", "code": 'assert chunk_text("abcd", 3, 0) == ["abc", "d"]'},
+        ],
+    ),
+    (
+        "ex-build-context",
+        'def build_context(chunks, question):\n    lines = [f"[{i + 1}] {c}" for i, c in enumerate(chunks)]\n    return "\\n".join(lines) + f"\\n\\nQuestion: {question}"',
+        [
+            {"name": "a", "code": 'out = build_context(["alpha fact", "beta fact"], "which fact?")\nassert "alpha fact" in out and "beta fact" in out and "which fact?" in out'},
+            {"name": "b", "code": 'out = build_context(["x"], "q")\nassert "1" in out'},
+        ],
+    ),
 ]
 
 
@@ -360,4 +378,4 @@ def test_reference_solution_passes_all(ex_id, solution, tests):
 def test_every_code_exercise_has_a_reference_solution():
     """Guards against adding a code exercise without validating it here.
     Keep this count in sync with `type: 'exercise'` blocks in the frontend content."""
-    assert len(SOLUTIONS) == 34
+    assert len(SOLUTIONS) == 36

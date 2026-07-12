@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Question, Quiz } from '../content/types'
+import { correctAnswerText, isQuestionCorrect } from '../content/quiz'
 import Markdown from './Markdown'
 import AIExplain from './AIExplain'
 
@@ -9,14 +10,6 @@ interface QuestionState {
   earnedXp: number
   lastWrongAnswer: string | null
   revealed: boolean
-}
-
-function normalize(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function correctAnswerText(q: Question): string {
-  return q.kind === 'mcq' ? q.choices[q.answerIndex] : q.acceptableAnswers[0]
 }
 
 /**
@@ -97,9 +90,7 @@ function QuestionView({
     if (question.kind === 'mcq' && selected === null) return
 
     const correct =
-      question.kind === 'mcq'
-        ? selected === question.answerIndex
-        : question.acceptableAnswers.some((a) => normalize(a) === normalize(typed))
+      question.kind === 'mcq' ? isQuestionCorrect(question, selected) : isQuestionCorrect(question, typed)
 
     const attempts = state.attempts + 1
     if (correct) {
