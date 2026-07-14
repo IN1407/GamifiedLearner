@@ -32,6 +32,7 @@ export default function AssessmentView() {
 
   const record = useStore((s) => (assessmentId ? s.assessments[assessmentId] : undefined))
   const recordAttempt = useStore((s) => s.recordAssessmentAttempt)
+  const recordMasteryEvidence = useStore((s) => s.recordMasteryEvidence)
   const xp = useXp()
   const streak = useStreak()
 
@@ -76,6 +77,14 @@ export default function AssessmentView() {
         passed: result.passed,
         xpOnPass: assessmentXp(maxPoints),
       })
+      // Strong, per-topic mastery evidence — retries count less (anti-farming).
+      const weight = (record?.attempts ?? 0) === 0 ? 1 : 0.4
+      const seenModules = new Set<string>()
+      for (const r of assessment.reviewMap) {
+        if (seenModules.has(r.moduleId)) continue
+        seenModules.add(r.moduleId)
+        await recordMasteryEvidence({ moduleId: r.moduleId, success: result.fraction, weight })
+      }
       setScore(result)
       setPhase('result')
       if (newlyPassed) setCelebrate(getMilestone(assessment.milestoneId) ?? null)

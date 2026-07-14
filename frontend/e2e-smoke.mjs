@@ -27,7 +27,7 @@ try {
   check('redirects first-run to onboarding', page.url().includes('/onboarding'))
 
   // math level: pick 9th-10th grade, then continue
-  await page.getByText('9th–10th grade').click()
+  await page.locator('#grade-select').selectOption('grade9')
   await page.getByRole('button', { name: /Continue/ }).click()
   check('advances to AI connect step', await page.getByText(/Connect your AI/i).isVisible())
 

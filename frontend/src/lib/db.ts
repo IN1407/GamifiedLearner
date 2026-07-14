@@ -7,9 +7,58 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 
 export type MathLevel = 'middle' | 'hs910' | 'hs1112' | 'college' | 'grad'
 
+export type GradeLevel =
+  | 'grade5'
+  | 'grade6'
+  | 'grade7'
+  | 'grade8'
+  | 'grade9'
+  | 'grade10'
+  | 'grade11'
+  | 'grade12'
+  | 'college'
+
+/** A grade level is the learner-facing initialization signal; it maps to the
+ * content-adaptation MathLevel. Demonstrated mastery can override the grade's
+ * assumptions later (recommendations use mastery, not just this). */
+export function gradeToMathLevel(g: GradeLevel): MathLevel {
+  switch (g) {
+    case 'grade5':
+    case 'grade6':
+    case 'grade7':
+    case 'grade8':
+      return 'middle'
+    case 'grade9':
+    case 'grade10':
+      return 'hs910'
+    case 'grade11':
+    case 'grade12':
+      return 'hs1112'
+    case 'college':
+      return 'college'
+  }
+}
+
+/** Reverse map for migrating existing users who only stored a MathLevel. */
+export function mathLevelToGrade(m: MathLevel): GradeLevel {
+  switch (m) {
+    case 'middle':
+      return 'grade7'
+    case 'hs910':
+      return 'grade9'
+    case 'hs1112':
+      return 'grade11'
+    case 'college':
+    case 'grad':
+      return 'college'
+  }
+}
+
 export interface Profile {
   id: 'local'
   mathLevel: MathLevel
+  /** learner-facing grade selection; optional for pre-grade-level profiles */
+  gradeLevel?: GradeLevel
   commitmentPerWeek: number
   onboardingComplete: boolean
   createdAt: number
@@ -63,6 +112,16 @@ export interface AssessmentRecord {
   attempts: AssessmentAttemptRecord[]
 }
 
+export interface MasteryRecord {
+  topicId: string
+  /** current mastery estimate 0..1 */
+  mastery: number
+  /** confidence in the estimate 0..1 (grows with attempts) */
+  confidence: number
+  attempts: number
+  lastUpdated: number
+}
+
 export interface ExplanationVersion {
   id: string
   versionNumber: number
@@ -96,11 +155,12 @@ interface GLSchema extends DBSchema {
   }
   assessments: { key: string; value: AssessmentRecord }
   explanations: { key: string; value: ExplanationHistory }
+  mastery: { key: string; value: MasteryRecord }
   meta: { key: string; value: { id: string; value: unknown } }
 }
 
 const DB_NAME = 'gamified-learner'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 let dbPromise: Promise<IDBPDatabase<GLSchema>> | null = null
 
@@ -130,6 +190,9 @@ export function getDB(): Promise<IDBPDatabase<GLSchema>> {
         }
         if (!db.objectStoreNames.contains('explanations')) {
           db.createObjectStore('explanations', { keyPath: 'siteId' })
+        }
+        if (!db.objectStoreNames.contains('mastery')) {
+          db.createObjectStore('mastery', { keyPath: 'topicId' })
         }
         if (!db.objectStoreNames.contains('meta')) {
           db.createObjectStore('meta', { keyPath: 'id' })
@@ -186,6 +249,14 @@ export async function saveAssessment(record: AssessmentRecord): Promise<void> {
   await (await getDB()).put('assessments', record)
 }
 
+// ---- topic mastery ----
+export async function loadAllMastery(): Promise<MasteryRecord[]> {
+  return (await getDB()).getAll('mastery')
+}
+export async function saveMastery(record: MasteryRecord): Promise<void> {
+  await (await getDB()).put('mastery', record)
+}
+
 // ---- explanation version history ----
 export async function loadExplanation(siteId: string): Promise<ExplanationHistory | undefined> {
   return (await getDB()).get('explanations', siteId)
@@ -210,8 +281,9 @@ export interface ExportedState {
   profile: Profile | null
   progress: LessonProgress[]
   events: ActivityEvent[]
-  /** optional for backward compatibility with pre-assessment exports */
+  /** optional for backward compatibility with older exports */
   assessments?: AssessmentRecord[]
+  mastery?: MasteryRecord[]
 }
 
 export async function exportState(): Promise<ExportedState> {
@@ -223,16 +295,18 @@ export async function exportState(): Promise<ExportedState> {
     progress: await db.getAll('progress'),
     events: await db.getAll('events'),
     assessments: await db.getAll('assessments'),
+    mastery: await db.getAll('mastery'),
   }
 }
 
 export async function importState(state: ExportedState): Promise<void> {
   if (state.version !== 1) throw new Error(`Unsupported export version: ${state.version}`)
   const db = await getDB()
-  const tx = db.transaction(['profile', 'progress', 'events', 'assessments'], 'readwrite')
+  const tx = db.transaction(['profile', 'progress', 'events', 'assessments', 'mastery'], 'readwrite')
   await tx.objectStore('progress').clear()
   await tx.objectStore('events').clear()
   await tx.objectStore('assessments').clear()
+  await tx.objectStore('mastery').clear()
   if (state.profile) await tx.objectStore('profile').put(state.profile)
   for (const p of state.progress) await tx.objectStore('progress').put(p)
   for (const e of state.events) {
@@ -240,16 +314,18 @@ export async function importState(state: ExportedState): Promise<void> {
     await tx.objectStore('events').add(rest as ActivityEvent)
   }
   for (const a of state.assessments ?? []) await tx.objectStore('assessments').put(a)
+  for (const m of state.mastery ?? []) await tx.objectStore('mastery').put(m)
   await tx.done
 }
 
 /** Reset learning progress only — keeps profile + AI connection. */
 export async function resetProgress(): Promise<void> {
   const db = await getDB()
-  const tx = db.transaction(['progress', 'events', 'assessments', 'explanations'], 'readwrite')
+  const tx = db.transaction(['progress', 'events', 'assessments', 'explanations', 'mastery'], 'readwrite')
   await tx.objectStore('progress').clear()
   await tx.objectStore('events').clear()
   await tx.objectStore('assessments').clear()
   await tx.objectStore('explanations').clear()
+  await tx.objectStore('mastery').clear()
   await tx.done
 }

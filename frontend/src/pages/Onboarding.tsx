@@ -1,24 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchProviders, validateProvider, type ProviderInfo } from '../lib/api'
-import type { MathLevel } from '../lib/db'
+import { GRADE_LEVELS, gradeBlurb } from '../content/gradeLevels'
+import type { GradeLevel } from '../lib/db'
 import { useStore } from '../state/useStore'
 import ErrorBanner from '../components/ErrorBanner'
-
-const MATH_LEVELS: { id: MathLevel; label: string; blurb: string }[] = [
-  { id: 'middle', label: 'Middle school', blurb: 'We explain everything from scratch — “derivative” included.' },
-  { id: 'hs910', label: '9th–10th grade', blurb: 'Algebra assumed; calculus built up step by step.' },
-  { id: 'hs1112', label: '11th–12th grade', blurb: 'Basic calculus assumed; linear algebra from scratch.' },
-  { id: 'college', label: 'College', blurb: 'Calculus + vectors assumed; we move faster on notation.' },
-  { id: 'grad', label: 'Graduate', blurb: 'Full notation, terse derivations, references to go deeper.' },
-]
 
 export default function Onboarding() {
   const navigate = useNavigate()
   const completeOnboarding = useStore((s) => s.completeOnboarding)
 
   const [step, setStep] = useState<1 | 2>(1)
-  const [mathLevel, setMathLevel] = useState<MathLevel>('college')
+  const [gradeLevel, setGradeLevel] = useState<GradeLevel>('college')
   const [commitment, setCommitment] = useState(3)
 
   return (
@@ -37,33 +30,30 @@ export default function Onboarding() {
 
       {step === 1 && (
         <section aria-label="Step 1: your starting point">
-          <h2 className="text-xl font-bold text-slate-100">1 · Set your math level</h2>
+          <h2 className="text-xl font-bold text-slate-100">1 · What grade are you in?</h2>
           <p className="mt-1 mb-4 text-sm text-slate-400">
-            This tunes how much scaffolding the math-for-AI and neural-network modules give you — lower
-            levels get <em>more</em> worked steps, never less content. Change it anytime in Settings.
+            This sets your starting point for the AI-relevant math — lower grades get <em>more</em> worked
+            steps, never less content. As you demonstrate mastery, the app adapts beyond your grade.
+            Change it anytime in Settings.
           </p>
-          <div role="radiogroup" aria-label="Math level" className="space-y-2">
-            {MATH_LEVELS.map((lvl) => (
-              <label
-                key={lvl.id}
-                className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
-                  mathLevel === lvl.id ? 'border-indigo-400 bg-indigo-500/10' : 'border-slate-800 bg-slate-900 hover:border-slate-700'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="mathLevel"
-                  className="mt-1 accent-indigo-600"
-                  checked={mathLevel === lvl.id}
-                  onChange={() => setMathLevel(lvl.id)}
-                />
-                <span>
-                  <span className="font-semibold text-slate-100">{lvl.label}</span>
-                  <span className="block text-sm text-slate-400">{lvl.blurb}</span>
-                </span>
-              </label>
+          <label htmlFor="grade-select" className="block text-sm font-medium text-slate-300">
+            Education level
+          </label>
+          <select
+            id="grade-select"
+            value={gradeLevel}
+            onChange={(e) => setGradeLevel(e.target.value as GradeLevel)}
+            className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950/50 px-3 py-2.5 text-slate-100 focus:border-indigo-400"
+          >
+            {GRADE_LEVELS.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.label}
+              </option>
             ))}
-          </div>
+          </select>
+          <p className="mt-2 rounded-xl border border-slate-800 bg-slate-800/60 p-3 text-sm text-slate-400" aria-live="polite">
+            {gradeBlurb(gradeLevel)}
+          </p>
 
           <h2 className="mt-8 text-xl font-bold text-slate-100">Your weekly commitment</h2>
           <p className="mt-1 mb-3 text-sm text-slate-400">
@@ -96,7 +86,7 @@ export default function Onboarding() {
       {step === 2 && (
         <ConnectAIStep
           onDone={async (connected) => {
-            await completeOnboarding(mathLevel, commitment)
+            await completeOnboarding(gradeLevel, commitment)
             if (connected) navigate('/', { replace: true })
             else navigate('/', { replace: true })
           }}

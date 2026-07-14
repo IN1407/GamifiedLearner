@@ -2,6 +2,10 @@
 
 A gamified e-learning platform that takes you from your first line of Python to reading modern attention papers — then teaches you to *use* AI fluently. Duolingo-style streaks and XP, unlockable milestone **statuses** earned by passing **checkpoint assessments** (Pythonista → Backend Wrangler → Attention Alchemist → Neural Architect → Prompt Whisperer → AI Power User), quizzes with AI-explained mistakes, code exercises **verified statically (your code is never executed) and reviewed by AI**, interactive visualizations (tokenizer, vector similarity, chunking, attention, gradient descent, softmax), a hands-on **RAG** build (chunking → embeddings → retrieval → context → generation), and free-text exercises graded by your own connected AI model — all in a sleek dark UI.
 
+### Adaptive learning
+
+You pick a **grade level** (Grade 5 → College) at onboarding; it sets the starting point for the AI-relevant math (lower grades get *more* worked steps, never less content). From there the app is **mastery-driven**: every topic gets an evidence-based mastery estimate that goes up from how *correctly* you do the work — quiz answers, exercise passes, checkpoint scores — **not** from merely finishing lessons. The update is a deterministic moving average that resists farming (repeated near-identical attempts count less). Mastery feeds a **"Your mastery"** dashboard and an explainable **"Recommended next"** card that will surface a weak topic for review before pushing you forward — demonstrated mastery can override the grade's assumptions.
+
 ### Checkpoint assessments
 
 After each major checkpoint you take a mixed **quiz + coding** assessment. Score **40%+** (a single centralized threshold) to unlock the matching status. Scoring is deterministic — quiz answers graded exactly, code checked by static structural analysis — so it works even in demo mode; the connected AI is optional/advisory and never decides pass/fail. Unlimited retries, your best score is kept, and a failed attempt shows exactly which modules to review.
@@ -34,7 +38,7 @@ npm install
 npm run dev        # http://localhost:5173  (proxies /api to the backend on :8000)
 ```
 
-Open http://localhost:5173. On first run you'll pick a math level and connect an AI provider. **No key? Choose "Demo mode"** — the whole app is fully clickable with a built-in fake local model, or point it at a local **Ollama** for a real, free, offline model.
+Open http://localhost:5173. On first run you'll pick a grade level and connect an AI provider. **No key? Choose "Demo mode"** — the whole app is fully clickable with a built-in fake local model, or point it at a local **Ollama** for a real, free, offline model.
 
 ### 3. Production build
 
@@ -81,7 +85,7 @@ All three prompts live in `backend/app/prompts.py` and are intentionally separat
 cd backend && .venv/bin/python -m pytest tests/ -q      # 82 tests
 
 # Frontend: gamification math, content integrity, share-card rendering, API client
-cd frontend && npm test                                  # 72 tests
+cd frontend && npm test                                  # 87 tests
 
 # End-to-end (drives the real app in Chromium; needs both servers running)
 cd frontend && node e2e-smoke.mjs                        # 14 checks

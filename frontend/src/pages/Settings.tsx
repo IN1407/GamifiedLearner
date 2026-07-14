@@ -1,22 +1,15 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { exportState, importState, type MathLevel } from '../lib/db'
+import { exportState, importState, type GradeLevel } from '../lib/db'
+import { GRADE_LEVELS, gradeBlurb } from '../content/gradeLevels'
 import { useStore } from '../state/useStore'
 import { ConnectAIStep } from './Onboarding'
 import ErrorBanner from '../components/ErrorBanner'
 
-const MATH_LEVELS: { id: MathLevel; label: string }[] = [
-  { id: 'middle', label: 'Middle school' },
-  { id: 'hs910', label: '9th–10th grade' },
-  { id: 'hs1112', label: '11th–12th grade' },
-  { id: 'college', label: 'College' },
-  { id: 'grad', label: 'Graduate' },
-]
-
 export default function Settings() {
   const profile = useStore((s) => s.profile)
   const aiConfig = useStore((s) => s.aiConfig)
-  const setMathLevel = useStore((s) => s.setMathLevel)
+  const setGradeLevel = useStore((s) => s.setGradeLevel)
   const setCommitment = useStore((s) => s.setCommitment)
   const disconnectAI = useStore((s) => s.disconnectAI)
   const resetProgress = useStore((s) => s.resetProgress)
@@ -72,24 +65,26 @@ export default function Settings() {
         </p>
       )}
 
-      {/* Math level */}
+      {/* Grade level */}
       <section id="math-level" className="mb-6 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-sm">
-        <h2 className="font-bold text-slate-100">Math level</h2>
+        <h2 className="font-bold text-slate-100">Grade level</h2>
         <p className="mt-1 mb-3 text-sm text-slate-400">
-          Controls scaffolding depth in the math-for-AI and neural-network modules. Takes effect immediately.
+          Sets your starting point for the AI-relevant math. Demonstrated mastery adapts you beyond it.
+          Takes effect immediately.
         </p>
         <select
-          value={profile?.mathLevel ?? 'college'}
-          onChange={(e) => setMathLevel(e.target.value as MathLevel)}
-          aria-label="Math level"
+          value={profile?.gradeLevel ?? 'college'}
+          onChange={(e) => setGradeLevel(e.target.value as GradeLevel)}
+          aria-label="Grade level"
           className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm"
         >
-          {MATH_LEVELS.map((l) => (
+          {GRADE_LEVELS.map((l) => (
             <option key={l.id} value={l.id}>
               {l.label}
             </option>
           ))}
         </select>
+        <p className="mt-2 text-xs text-slate-500">{gradeBlurb(profile?.gradeLevel ?? 'college')}</p>
       </section>
 
       {/* Commitment */}

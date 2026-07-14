@@ -7,7 +7,7 @@ import {
   lessonStatus,
   moduleMasteryPct,
 } from '../content'
-import { progressKey } from '../content/types'
+import { lessonInteractiveMaxXp, progressKey } from '../content/types'
 import { assessmentsAfterModule } from '../content/assessments'
 import { newlyEarnedMilestone } from '../content/milestones'
 import { useStore, useStreak, useXp, usePassedAssessments } from '../state/useStore'
@@ -23,6 +23,7 @@ export default function CoursePlayer() {
   const profile = useStore((s) => s.profile)
   const progress = useStore((s) => s.progress)
   const completeLesson = useStore((s) => s.completeLesson)
+  const recordMasteryEvidence = useStore((s) => s.recordMasteryEvidence)
   const xp = useXp()
   const streak = useStreak()
   const passed = usePassedAssessments()
@@ -91,6 +92,16 @@ export default function CoursePlayer() {
       xp: earned,
       isCheckpoint: lesson.kind === 'checkpoint',
     })
+    // Evidence-based mastery: only lessons with interactive work contribute,
+    // and the signal is how *correctly* it was done (earned / max), not merely
+    // that the lesson was finished.
+    const interactiveMax = lessonInteractiveMaxXp(lesson)
+    if (interactiveMax > 0) {
+      await recordMasteryEvidence({
+        moduleId: module.id,
+        success: Math.max(0, Math.min(1, lessonXp / interactiveMax)),
+      })
+    }
     if (lesson.kind === 'checkpoint' || earnedMilestone) {
       setLevelUp({
         moduleTitle: module.title,

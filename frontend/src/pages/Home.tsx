@@ -2,15 +2,10 @@ import { Link } from 'react-router-dom'
 import { courses, courseProgressPct, firstIncomplete } from '../content'
 import { useStore, useStreak, useXp, usePassedAssessments } from '../state/useStore'
 import { levelForXp } from '../lib/gamification'
+import { gradeLabel } from '../content/gradeLevels'
+import { recommendNext } from '../content/recommendations'
 import StatusBar from '../components/StatusBar'
-
-const MATH_LEVEL_LABELS: Record<string, string> = {
-  middle: 'Middle school',
-  hs910: '9th–10th grade',
-  hs1112: '11th–12th grade',
-  college: 'College',
-  grad: 'Graduate',
-}
+import MasteryPanel from '../components/MasteryPanel'
 
 export default function Home() {
   const profile = useStore((s) => s.profile)
@@ -19,6 +14,8 @@ export default function Home() {
   const xp = useXp()
   const streak = useStreak()
   const passed = usePassedAssessments()
+  const mastery = useStore((s) => s.mastery)
+  const rec = recommendNext(progress, mastery)
   const { level, intoLevel, needed } = levelForXp(xp)
 
   return (
@@ -64,12 +61,27 @@ export default function Home() {
       {/* Status progression (derived from milestones) */}
       <StatusBar progress={progress} passed={passed} />
 
+      {/* Adaptive recommendation (mastery can override "just continue") */}
+      <Link
+        to={rec.target}
+        className="mb-8 block rounded-2xl border border-indigo-500/40 bg-indigo-500/10 p-5 transition hover:bg-indigo-500/15"
+      >
+        <p className="text-xs font-bold tracking-wide text-indigo-300 uppercase">
+          {rec.kind === 'review' ? '🎯 Recommended review' : rec.kind === 'continue' ? '▶ Recommended next' : '🏆 Recommended'}
+        </p>
+        <p className="mt-1 text-lg font-bold text-slate-100">{rec.title}</p>
+        <p className="mt-0.5 text-sm text-slate-300">{rec.reason}</p>
+      </Link>
+
+      {/* Evidence-based topic mastery */}
+      <MasteryPanel mastery={mastery} />
+
       <div className="mb-8 flex flex-wrap gap-3 text-sm">
         <Link
           to="/settings#math-level"
           className="rounded-full border border-slate-700 bg-slate-900 px-4 py-1.5 text-slate-200 shadow-sm hover:bg-slate-800/60"
         >
-          📐 Math level: <strong>{MATH_LEVEL_LABELS[profile?.mathLevel ?? 'college']}</strong>
+          🎓 Grade: <strong>{gradeLabel(profile?.gradeLevel ?? 'college')}</strong>
         </Link>
         <Link
           to="/settings#ai"

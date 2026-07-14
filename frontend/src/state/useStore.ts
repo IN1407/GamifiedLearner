@@ -9,20 +9,26 @@ import {
   loadAIConfig,
   loadAllAssessments,
   loadAllEvents,
+  loadAllMastery,
   loadAllProgress,
   loadProfile,
   resetProgress as dbResetProgress,
   saveAIConfig,
   saveAssessment,
   saveLessonProgress,
+  saveMastery,
   saveProfile,
+  gradeToMathLevel,
+  mathLevelToGrade,
   type ActivityEvent,
   type AIConfig,
   type AssessmentRecord,
+  type GradeLevel,
   type LessonProgress,
-  type MathLevel,
+  type MasteryRecord,
   type Profile,
 } from '../lib/db'
+import { topicsForModule, updateMastery } from '../content/mastery'
 import { encryptSecret } from '../lib/crypto'
 import { computeStreak, totalXp, type StreakInfo } from '../lib/gamification'
 import { progressKey } from '../content/types'
@@ -34,10 +40,11 @@ interface StoreState {
   progress: Record<string, LessonProgress>
   events: ActivityEvent[]
   assessments: Record<string, AssessmentRecord>
+  mastery: Record<string, MasteryRecord>
 
   hydrate: () => Promise<void>
-  completeOnboarding: (mathLevel: MathLevel, commitment: number) => Promise<void>
-  setMathLevel: (level: MathLevel) => Promise<void>
+  completeOnboarding: (gradeLevel: GradeLevel, commitment: number) => Promise<void>
+  setGradeLevel: (grade: GradeLevel) => Promise<void>
   setCommitment: (n: number) => Promise<void>
   connectAI: (opts: {
     provider: string
@@ -63,6 +70,8 @@ interface StoreState {
     passed: boolean
     xpOnPass: number
   }) => Promise<boolean>
+  /** Fold demonstrated correctness into the topics a module maps to. */
+  recordMasteryEvidence: (opts: { moduleId: string; success: number; weight?: number }) => Promise<void>
   resetProgress: () => Promise<void>
   reloadFromDB: () => Promise<void>
 }
@@ -74,33 +83,46 @@ export const useStore = create<StoreState>((set, get) => ({
   progress: {},
   events: [],
   assessments: {},
+  mastery: {},
 
   hydrate: async () => {
-    const [profile, aiConfig, progressList, events, assessmentList] = await Promise.all([
+    const [profile, aiConfig, progressList, events, assessmentList, masteryList] = await Promise.all([
       loadProfile(),
       loadAIConfig(),
       loadAllProgress(),
       loadAllEvents(),
       loadAllAssessments(),
+      loadAllMastery(),
     ])
     const progress: Record<string, LessonProgress> = {}
     for (const p of progressList) progress[p.lessonId] = p
     const assessments: Record<string, AssessmentRecord> = {}
     for (const a of assessmentList) assessments[a.assessmentId] = a
+    const mastery: Record<string, MasteryRecord> = {}
+    for (const m of masteryList) mastery[m.topicId] = m
+    // Migrate pre-grade-level profiles: backfill a grade from the stored math
+    // level so existing users don't get bounced back to onboarding.
+    let migrated = profile ?? null
+    if (profile && !profile.gradeLevel) {
+      migrated = { ...profile, gradeLevel: mathLevelToGrade(profile.mathLevel) }
+      await saveProfile(migrated)
+    }
     set({
       hydrated: true,
-      profile: profile ?? null,
+      profile: migrated,
       aiConfig: aiConfig ?? null,
       progress,
       events,
       assessments,
+      mastery,
     })
   },
 
-  completeOnboarding: async (mathLevel, commitment) => {
+  completeOnboarding: async (gradeLevel, commitment) => {
     const profile: Profile = {
       id: 'local',
-      mathLevel,
+      gradeLevel,
+      mathLevel: gradeToMathLevel(gradeLevel),
       commitmentPerWeek: commitment,
       onboardingComplete: true,
       createdAt: get().profile?.createdAt ?? Date.now(),
@@ -109,10 +131,11 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ profile })
   },
 
-  setMathLevel: async (mathLevel) => {
+  setGradeLevel: async (gradeLevel) => {
     const prev = get().profile
     if (!prev) return
-    const profile = { ...prev, mathLevel }
+    // Grade sets the content math level; mastery still overrides via recommendations.
+    const profile: Profile = { ...prev, gradeLevel, mathLevel: gradeToMathLevel(gradeLevel) }
     await saveProfile(profile)
     set({ profile })
   },
@@ -206,9 +229,23 @@ export const useStore = create<StoreState>((set, get) => ({
     return newlyPassed
   },
 
+  recordMasteryEvidence: async ({ moduleId, success, weight = 1 }) => {
+    const topics = topicsForModule(moduleId)
+    if (topics.length === 0) return
+    const now = Date.now()
+    const current = get().mastery
+    const updated: Record<string, MasteryRecord> = {}
+    for (const topicId of topics) {
+      updated[topicId] = updateMastery(current[topicId], topicId, success, weight, now)
+    }
+    // persist each touched topic (IndexedDB put is atomic per record)
+    await Promise.all(Object.values(updated).map(saveMastery))
+    set((s) => ({ mastery: { ...s.mastery, ...updated } }))
+  },
+
   resetProgress: async () => {
     await dbResetProgress()
-    set({ progress: {}, events: [], assessments: {} })
+    set({ progress: {}, events: [], assessments: {}, mastery: {} })
   },
 
   reloadFromDB: async () => {
