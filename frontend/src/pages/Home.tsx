@@ -86,6 +86,24 @@ export default function Home() {
         </Link>
       </div>
 
+      <Link
+        to="/tank"
+        className="mb-8 flex items-center gap-4 rounded-3xl border border-emerald-700/50 bg-gradient-to-r from-emerald-900/40 to-slate-900 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        aria-label="Play Tank Battle reading game"
+      >
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-2xl" aria-hidden>
+          🎯
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-slate-100">Tank Battle — read to win</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            A 3D tank game where beating a boss means reading a passage and answering questions. 30
+            checkpoints, unlockable tanks, coins & upgrades.
+          </p>
+        </div>
+        <span className="ml-auto hidden shrink-0 text-sm font-semibold text-emerald-300 sm:block">Play →</span>
+      </Link>
+
       <section className="mb-8 rounded-3xl border border-slate-800 bg-slate-900 p-5" aria-label="Adaptive math recommendation">
         <p className="text-sm font-semibold text-indigo-300">Adaptive math loop</p>
         <h2 className="mt-1 text-xl font-bold text-slate-100">Next math focus: {recommendation.topic.title}</h2>
