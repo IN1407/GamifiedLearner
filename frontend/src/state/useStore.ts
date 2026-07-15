@@ -26,7 +26,14 @@ import {
   type Profile,
 } from '../lib/db'
 import { mapMathLevelToGrade, updateMastery, type GradeLevel, type MasteryEvidence, type TopicMastery } from '../lib/mastery'
-import { buildProgressDocument, persistProgressDocument, subscribeSaveState, type SaveState } from '../lib/progressRepository'
+import {
+  buildProgressDocument,
+  persistProgressDocument,
+  readActiveProgressDocument,
+  restoreStoresFromDocument,
+  subscribeSaveState,
+  type SaveState,
+} from '../lib/progressRepository'
 import { encryptSecret } from '../lib/crypto'
 import { computeStreak, totalXp, type StreakInfo } from '../lib/gamification'
 import { progressKey } from '../content/types'
@@ -86,7 +93,7 @@ export const useStore = create<StoreState>((set, get) => ({
   saveState: 'idle',
 
   hydrate: async () => {
-    const [profileRaw, aiConfig, progressList, events, assessmentList, masteryList] = await Promise.all([
+    let [profileRaw, aiConfig, progressList, events, assessmentList, masteryList] = await Promise.all([
       loadProfile(),
       loadAIConfig(),
       loadAllProgress(),
@@ -94,6 +101,24 @@ export const useStore = create<StoreState>((set, get) => ({
       loadAllAssessments(),
       loadAllMastery(),
     ])
+    // Crash recovery: if the per-record stores are empty but a valid atomic
+    // progress document survived, restore from it (the document is validated +
+    // checksum-verified; a corrupt one is quarantined and ignored).
+    const storesEmpty =
+      !profileRaw && progressList.length === 0 && events.length === 0 && assessmentList.length === 0 && masteryList.length === 0
+    if (storesEmpty) {
+      const doc = await readActiveProgressDocument()
+      if (doc && (doc.profile || doc.progress.length || doc.events.length || doc.assessments.length || Object.keys(doc.mastery).length)) {
+        await restoreStoresFromDocument(doc)
+        ;[profileRaw, progressList, events, assessmentList, masteryList] = [
+          doc.profile ?? undefined,
+          doc.progress,
+          doc.events,
+          doc.assessments,
+          Object.values(doc.mastery),
+        ]
+      }
+    }
     const profile = profileRaw ? { ...profileRaw, gradeLevel: profileRaw.gradeLevel ?? mapMathLevelToGrade(profileRaw.mathLevel) } : undefined
     const progress: Record<string, LessonProgress> = {}
     for (const p of progressList) progress[p.lessonId] = p

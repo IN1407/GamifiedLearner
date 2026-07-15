@@ -79,3 +79,49 @@ async function sha256(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
+
+/**
+ * Read the last atomically-written progress document from the active slot,
+ * verifying the checksum and schema. Returns null when nothing is stored or the
+ * stored document is corrupt/incompatible — in which case the bad payload is
+ * quarantined for debugging rather than loaded. This is the startup recovery
+ * source used when the per-record stores are missing/corrupt.
+ */
+export async function readActiveProgressDocument(): Promise<ProgressDocument | null> {
+  const db = await getDB()
+  const active = ((await db.get('meta', 'progress-active-slot'))?.value as 'A' | 'B' | undefined) ?? 'A'
+  const slot = (await db.get('meta', `progress-slot-${active}`))?.value as
+    | { payload: string; length: number; checksum: string }
+    | undefined
+  if (!slot?.payload) return null
+  try {
+    if ((await sha256(slot.payload)) !== slot.checksum) throw new Error('checksum mismatch')
+    const doc = JSON.parse(slot.payload) as ProgressDocument
+    validateProgressDocument(doc)
+    return doc
+  } catch (error) {
+    // Preserve the corrupt payload; never load partially-valid state.
+    await db.put('meta', { id: `progress-quarantine-${Date.now()}`, value: { slot, error: String(error) } })
+    return null
+  }
+}
+
+/** Restore the per-record stores from a recovered document (used when the
+ * individual stores were lost but the atomic document survived). */
+export async function restoreStoresFromDocument(doc: ProgressDocument): Promise<void> {
+  const db = await getDB()
+  const tx = db.transaction(['profile', 'progress', 'events', 'assessments', 'mastery'], 'readwrite')
+  await tx.objectStore('progress').clear()
+  await tx.objectStore('events').clear()
+  await tx.objectStore('assessments').clear()
+  await tx.objectStore('mastery').clear()
+  if (doc.profile) await tx.objectStore('profile').put(doc.profile)
+  for (const p of doc.progress) await tx.objectStore('progress').put(p)
+  for (const e of doc.events) {
+    const { id: _drop, ...rest } = e
+    await tx.objectStore('events').add(rest as ActivityEvent)
+  }
+  for (const a of doc.assessments) await tx.objectStore('assessments').put(a)
+  for (const [, m] of Object.entries(doc.mastery)) await tx.objectStore('mastery').put(m)
+  await tx.done
+}

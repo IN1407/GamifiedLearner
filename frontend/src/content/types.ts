@@ -122,3 +122,16 @@ export function lessonMaxXp(lesson: Lesson): number {
   if (lesson.kind === 'checkpoint') xp += 50
   return xp
 }
+
+/** Max XP from a lesson's *interactive* blocks only (no completion/checkpoint
+ * bonus). 0 for a pure-reading lesson. Denominator for the mastery-evidence
+ * signal: how *correctly* the interactive work was done. */
+export function lessonInteractiveMaxXp(lesson: Lesson): number {
+  let xp = 0
+  for (const b of lesson.blocks) {
+    if (b.type === 'quiz') for (const q of b.quiz.questions) xp += 5 * q.difficulty
+    else if (b.type === 'exercise') xp += 20 * b.exercise.difficulty
+    else if (b.type === 'promptExercise') xp += 25 * b.exercise.difficulty
+  }
+  return xp
+}
