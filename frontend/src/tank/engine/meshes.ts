@@ -7,6 +7,7 @@
  */
 import * as THREE from 'three'
 import type { TankDef } from '../types'
+import { grassTexture, rockTexture } from './textures'
 
 export interface TankMeshRefs {
   /** Root group: position is world position, rotation.y is the hull heading. */
@@ -147,21 +148,23 @@ export interface Arena {
 /** Build the ground, boundary walls, and scattered cover blocks. */
 export function buildArena(scene: THREE.Scene, seed: number): Arena {
   const half = 26
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x3f6d4a, roughness: 1 })
+  // Cartoony grass texture tiled across the field.
+  const grass = grassTexture()
+  grass.repeat.set(half / 2, half / 2)
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0xd9e8cf, map: grass, roughness: 1 })
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, half * 2), groundMat)
   ground.rotation.x = -Math.PI / 2
   ground.receiveShadow = true
   scene.add(ground)
 
-  // Subtle grid overlay for depth / readability.
-  const grid = new THREE.GridHelper(half * 2, half, 0x2f5238, 0x35603f)
-  ;(grid.material as THREE.Material).transparent = true
-  ;(grid.material as THREE.Material).opacity = 0.35
-  grid.position.y = 0.01
-  scene.add(grid)
+  // Cartoony rock texture, reused for walls and cover blocks.
+  const rock = rockTexture()
 
-  // Boundary walls.
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a4a3a, roughness: 0.9 })
+  // Boundary walls (rocky).
+  const wallTex = rock.clone()
+  wallTex.needsUpdate = true
+  wallTex.repeat.set(half / 2, 1)
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xbfc4cc, map: wallTex, roughness: 0.95 })
   const wallH = 1.6
   const wallT = 0.8
   const wallGeoNS = new THREE.BoxGeometry(half * 2 + wallT * 2, wallH, wallT)
@@ -180,9 +183,9 @@ export function buildArena(scene: THREE.Scene, seed: number): Arena {
     scene.add(wall)
   }
 
-  // Deterministic scattered cover blocks (obstacles).
+  // Deterministic scattered cover blocks (obstacles), rocky.
   const rng = mulberry32(seed)
-  const blockMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.8 })
+  const blockMat = new THREE.MeshStandardMaterial({ color: 0xc7ccd4, map: rock, roughness: 0.85 })
   const obstacles: Arena['obstacles'] = []
   const count = 7
   for (let i = 0; i < count; i++) {

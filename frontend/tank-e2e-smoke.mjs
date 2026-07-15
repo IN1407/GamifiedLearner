@@ -87,9 +87,11 @@ try {
   await bossBtn.click()
   await page.locator('canvas').waitFor({ timeout: 15000 })
 
-  // Stay idle; guards + invulnerable boss destroy the idle player -> reading gate.
+  // Charge into the guards + invulnerable boss so the player is destroyed
+  // quickly and deterministically -> reading gate.
   const reading = page.getByText(/Read to earn a second chance/)
-  await reading.waitFor({ timeout: 30000 })
+  await page.keyboard.down('w')
+  await reading.waitFor({ timeout: 40000 }).finally(() => page.keyboard.up('w'))
   check('boss death triggers the reading challenge', true)
 
   // Checkpoint 0's first passage is deterministic ("The Sleepy Cat"); answer it.
