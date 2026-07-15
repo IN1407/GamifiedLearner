@@ -9,6 +9,7 @@ import {
   type CheckpointAssessment,
 } from '../content/assessments'
 import type { Question } from '../content/types'
+import { topicsForModule } from '../content/topicEvidence'
 import { getMilestone, type MilestoneDef } from '../content/milestones'
 import { verifyCode } from '../lib/api'
 import { useStore, useStreak, useXp } from '../state/useStore'
@@ -32,6 +33,7 @@ export default function AssessmentView() {
 
   const record = useStore((s) => (assessmentId ? s.assessments[assessmentId] : undefined))
   const recordAttempt = useStore((s) => s.recordAssessmentAttempt)
+  const recordMasteryEvidence = useStore((s) => s.recordMasteryEvidence)
   const xp = useXp()
   const streak = useStreak()
 
@@ -76,6 +78,16 @@ export default function AssessmentView() {
         passed: result.passed,
         xpOnPass: assessmentXp(maxPoints),
       })
+      // Strong, per-topic mastery evidence from the assessment (retries count
+      // less thanks to the engine's per-item anti-farming).
+      const seenTopics = new Set<string>()
+      for (const r of assessment.reviewMap) {
+        for (const topicId of topicsForModule(r.moduleId)) {
+          if (seenTopics.has(topicId)) continue
+          seenTopics.add(topicId)
+          await recordMasteryEvidence({ topicId, itemId: assessment.id, kind: 'assessment', score: result.fraction })
+        }
+      }
       setScore(result)
       setPhase('result')
       if (newlyPassed) setCelebrate(getMilestone(assessment.milestoneId) ?? null)

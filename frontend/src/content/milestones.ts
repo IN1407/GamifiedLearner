@@ -32,31 +32,53 @@ export type MilestoneTrigger =
   | { kind: 'module-complete'; courseId: string; moduleId: string }
   | { kind: 'course-complete'; courseId: string }
   | { kind: 'all-courses-complete' }
+  /** satisfied when every non-secret milestone is earned (the surprise gate) */
+  | { kind: 'all-statuses' }
 
 /** No-op default so callers that don't track assessments still type-check. */
 const NO_ASSESSMENTS: ReadonlySet<string> = new Set()
+
+/** Each course has its OWN independent status track (a learner can do Course 2
+ * first). 'secret' is a hidden surprise revealed only once it's earned. */
+export type MilestoneTrack = 'course1' | 'course2' | 'secret'
+
+export interface TrackInfo {
+  id: MilestoneTrack
+  label: string
+}
+
+export const TRACKS: TrackInfo[] = [
+  { id: 'course1', label: 'Python for AI & Backend' },
+  { id: 'course2', label: 'AI-Power Usage' },
+]
 
 export interface MilestoneDef {
   /** stable id — never rename once shipped */
   id: string
   title: string
   subtitle: string
-  /** strict total order; the current status is the highest-order unlocked one */
+  /** which course track this status belongs to */
+  track: MilestoneTrack
+  /** order WITHIN its track */
   order: number
   icon: string
   trigger: MilestoneTrigger
+  /** hidden until earned — never shown as a locked node or a "next" target */
+  hidden?: boolean
 }
 
 /**
- * Ordered milestone progression. Triggers are keyed to real curriculum
- * checkpoints (see the course/module ids in src/content). Kept intentionally
- * few and well-spaced so each one feels earned.
+ * Statuses are grouped into independent per-course tracks. Triggers are keyed to
+ * real curriculum checkpoints. A hidden "surprise" unlocks only after every
+ * other status across both courses is earned.
  */
 export const MILESTONES: MilestoneDef[] = [
+  // ---- Course 1 track ----
   {
     id: 'python-core',
     title: 'Pythonista',
     subtitle: 'Core Python fluency: types, control flow, data structures & functions.',
+    track: 'course1',
     order: 10,
     icon: '🐍',
     trigger: { kind: 'assessment-passed', assessmentId: 'assess-python-core' },
@@ -65,6 +87,7 @@ export const MILESTONES: MilestoneDef[] = [
     id: 'backend-builder',
     title: 'Backend Wrangler',
     subtitle: 'You can stand up a real FastAPI service from scratch.',
+    track: 'course1',
     order: 20,
     icon: '⚙️',
     trigger: { kind: 'assessment-passed', assessmentId: 'assess-backend' },
@@ -73,6 +96,7 @@ export const MILESTONES: MilestoneDef[] = [
     id: 'transformer-internals',
     title: 'Attention Alchemist',
     subtitle: 'Transformers down to attention, the KV-cache and mixture-of-experts.',
+    track: 'course1',
     order: 30,
     icon: '🧬',
     trigger: { kind: 'assessment-passed', assessmentId: 'assess-transformers' },
@@ -81,31 +105,50 @@ export const MILESTONES: MilestoneDef[] = [
     id: 'course1-complete',
     title: 'Neural Architect',
     subtitle: 'The whole zero-to-shipping Python-for-AI track, done.',
+    track: 'course1',
     order: 40,
     icon: '🏗️',
     trigger: { kind: 'assessment-passed', assessmentId: 'assess-course1' },
   },
+  // ---- Course 2 track (independent — can be earned first) ----
   {
     id: 'course2-complete',
     title: 'Prompt Whisperer',
     subtitle: 'Practical AI power-usage and prompt engineering, mastered.',
-    order: 50,
+    track: 'course2',
+    order: 10,
     icon: '🎯',
     trigger: { kind: 'assessment-passed', assessmentId: 'assess-course2' },
   },
   {
-    id: 'all-complete',
+    id: 'course2-power',
     title: 'AI Power User',
-    subtitle: 'Every course in GamifiedLearner — completed.',
-    order: 60,
+    subtitle: 'Finished every AI-Power Usage lesson — prompting, tools, and workflow design.',
+    track: 'course2',
+    order: 20,
     icon: '⚡',
-    trigger: { kind: 'all-courses-complete' },
+    trigger: { kind: 'course-complete', courseId: 'course2' },
+  },
+  // ---- Secret surprise (hidden until every other status is earned) ----
+  {
+    id: 'singularity',
+    title: 'The Singularity',
+    subtitle: 'You mastered every path — Python, the math, the models, and the prompts. The whole machine is yours.',
+    track: 'secret',
+    order: 100,
+    icon: '🌌',
+    hidden: true,
+    trigger: { kind: 'all-statuses' },
   },
 ]
 
-// Defensive: guarantee the array stays strictly ordered and id-unique even if
-// someone edits it carelessly later.
-const BY_ORDER = [...MILESTONES].sort((a, b) => a.order - b.order)
+// Global ordering across tracks (course1 → course2 → secret), used for the
+// single "current status" the share card shows. Within a track, `order` wins.
+const TRACK_PRIORITY: Record<MilestoneTrack, number> = { course1: 1000, course2: 2000, secret: 9000 }
+export function globalOrder(m: MilestoneDef): number {
+  return TRACK_PRIORITY[m.track] + m.order
+}
+const BY_ORDER = [...MILESTONES].sort((a, b) => globalOrder(a) - globalOrder(b))
 
 type Progress = Record<string, LessonProgress>
 
@@ -142,6 +185,9 @@ export function isMilestoneSatisfied(
       return isCourseComplete(def.trigger.courseId, progress)
     case 'all-courses-complete':
       return courses.every((c) => isCourseComplete(c.id, progress))
+    case 'all-statuses':
+      // The surprise: earned only once every non-secret status is unlocked.
+      return MILESTONES.filter((m) => m.track !== 'secret').every((m) => isMilestoneSatisfied(m, progress, passed))
   }
 }
 
@@ -162,12 +208,13 @@ export function currentStatus(
   return unlocked.length ? unlocked[unlocked.length - 1] : null
 }
 
-/** The next status to aim for: lowest-order not-yet-unlocked milestone, or null. */
+/** The next status to aim for: lowest-order not-yet-unlocked NON-HIDDEN
+ * milestone (a surprise is never advertised as the next target), or null. */
 export function nextStatus(
   progress: Progress,
   passed: ReadonlySet<string> = NO_ASSESSMENTS,
 ): MilestoneDef | null {
-  return BY_ORDER.find((m) => !isMilestoneSatisfied(m, progress, passed)) ?? null
+  return BY_ORDER.find((m) => !m.hidden && !isMilestoneSatisfied(m, progress, passed)) ?? null
 }
 
 export interface MilestoneNode {
@@ -176,13 +223,40 @@ export interface MilestoneNode {
   current: boolean
 }
 
-/** Full progression for the status bar: every milestone with its unlock state. */
+/** Milestones in a single course track, ordered. Hidden (surprise) statuses are
+ * excluded unless already unlocked. */
+export function trackProgression(
+  track: MilestoneTrack,
+  progress: Progress,
+  passed: ReadonlySet<string> = NO_ASSESSMENTS,
+): MilestoneNode[] {
+  const current = currentStatus(progress, passed)
+  return BY_ORDER.filter((m) => m.track === track)
+    .filter((m) => !m.hidden || isMilestoneSatisfied(m, progress, passed))
+    .map((m) => ({
+      milestone: m,
+      unlocked: isMilestoneSatisfied(m, progress, passed),
+      current: current?.id === m.id,
+    }))
+}
+
+/** The hidden surprise milestone and whether it's been earned. */
+export function secretMilestone(
+  progress: Progress,
+  passed: ReadonlySet<string> = NO_ASSESSMENTS,
+): { milestone: MilestoneDef; unlocked: boolean } | null {
+  const secret = MILESTONES.find((m) => m.track === 'secret')
+  if (!secret) return null
+  return { milestone: secret, unlocked: isMilestoneSatisfied(secret, progress, passed) }
+}
+
+/** Full progression across all tracks (hidden statuses only if unlocked). */
 export function milestoneProgression(
   progress: Progress,
   passed: ReadonlySet<string> = NO_ASSESSMENTS,
 ): MilestoneNode[] {
   const current = currentStatus(progress, passed)
-  return BY_ORDER.map((m) => ({
+  return BY_ORDER.filter((m) => !m.hidden || isMilestoneSatisfied(m, progress, passed)).map((m) => ({
     milestone: m,
     unlocked: isMilestoneSatisfied(m, progress, passed),
     current: current?.id === m.id,

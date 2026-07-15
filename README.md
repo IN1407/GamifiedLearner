@@ -6,6 +6,10 @@ A gamified e-learning platform that takes you from your first line of Python to 
 
 After each major checkpoint you take a mixed **quiz + coding** assessment. Score **40%+** (a single centralized threshold) to unlock the matching status. Scoring is deterministic — quiz answers graded exactly, code checked by static structural analysis — so it works even in demo mode; the connected AI is optional/advisory and never decides pass/fail. Unlimited retries, your best score is kept, and a failed attempt shows exactly which modules to review.
 
+Statuses live in **separate per-course tracks** (Python-for-AI and AI-Power-Usage), so a learner who starts with Course 2 still sees a coherent progression — the tracks are fully independent. Clear *every* status across both courses and a **hidden surprise status** reveals itself (no spoilers — it isn't shown as a locked node beforehand).
+
+Mastery is **evidence-based**: passing quizzes/exercises and scoring on checkpoint assessments updates a per-topic mastery estimate (Python, Mathematics, AI Engineering, Prompt Engineering) shown on the home dashboard — it moves from how *correctly* you work, not from merely finishing lessons. Progress is written continuously to a checksummed, double-buffered **atomic document**; if the per-record stores are ever lost or corrupted, startup **recovers** from that document (and quarantines anything that fails validation — secrets are never written to it).
+
 Two courses:
 
 - **Course 1 — Python for AI & Backend** (14 modules): Python fundamentals → data structures → intermediate Python → tooling (decorators/generators/async) → FastAPI backend → math for AI → neural-network internals (backprop derived from scratch) → transformers in depth → efficient attention (DeepSeek MLA, MiniMax lightning attention, Kimi K2 — with cited primary sources) → running models → fine-tuning (LoRA/QLoRA) → RAG → calling AI providers from Python (OpenAI, Anthropic, Google GenAI, Groq, xAI, Z.AI, Ollama, llama-cpp-python, Transformers) → a capstone.

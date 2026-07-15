@@ -4,6 +4,7 @@ import { useStore, useStreak, useXp, usePassedAssessments } from '../state/useSt
 import { levelForXp } from '../lib/gamification'
 import StatusBar from '../components/StatusBar'
 import SaveStateIndicator from '../components/SaveStateIndicator'
+import MasteryPanel from '../components/MasteryPanel'
 import { recommendMathTopic } from '../lib/mastery'
 
 const MATH_LEVEL_LABELS: Record<string, string> = {
@@ -92,6 +93,9 @@ export default function Home() {
         <p className="mt-2 text-sm text-slate-400">{recommendation.reason}</p>
         <p className="mt-2 text-xs text-slate-500">AI connection: {recommendation.topic.aiUses.join('; ')}</p>
       </section>
+
+      {/* Evidence-based mastery across Python, Math, AI Engineering & Prompting */}
+      <MasteryPanel mastery={mastery} />
 
       {/* Course cards */}
       <section aria-label="Courses" className="grid gap-5 md:grid-cols-2">
