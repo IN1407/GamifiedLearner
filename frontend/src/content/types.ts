@@ -71,6 +71,9 @@ export type VizKind =
   | 'tokenizer'
   | 'similarity'
   | 'chunking'
+  | 'contextWindow'
+  | 'streaming'
+  | 'inferencePath'
 
 export type Block =
   | {

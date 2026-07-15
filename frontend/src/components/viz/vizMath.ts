@@ -52,3 +52,51 @@ export function makeChunks(text: string, size: number, overlap: number): Chunk[]
   }
   return out
 }
+
+export interface BudgetSegment {
+  label: string
+  tokens: number
+}
+
+export interface BudgetSlice extends BudgetSegment {
+  /** Fraction of the whole capacity this segment occupies, in [0, 1]. */
+  pct: number
+}
+
+export interface ContextBudget {
+  capacity: number
+  used: number
+  /** Free tokens left for the model's response (0 if the prompt overflows). */
+  headroom: number
+  /** Tokens by which the request exceeds the window (0 when it fits). */
+  overflow: number
+  fits: boolean
+  slices: BudgetSlice[]
+}
+
+/**
+ * Context-window budget: given labeled token amounts and a total capacity,
+ * report how much of the window each part consumes, the response headroom, and
+ * whether it overflows. Deterministic so the meter can be verified by hand.
+ * Percentages are computed against capacity (not the sum), so an overflowing
+ * request visibly exceeds 100%.
+ */
+export function contextBudget(segments: BudgetSegment[], capacity: number): ContextBudget {
+  const cap = Math.max(1, capacity)
+  const used = segments.reduce((a, s) => a + Math.max(0, s.tokens), 0)
+  const slices = segments.map((s) => ({ ...s, pct: Math.max(0, s.tokens) / cap }))
+  return {
+    capacity: cap,
+    used,
+    headroom: Math.max(0, cap - used),
+    overflow: Math.max(0, used - cap),
+    fits: used <= cap,
+    slices,
+  }
+}
+
+/** First `count` tokens joined back into text — the "already generated" prefix
+ * a streaming UI has received so far (partial-output preservation). */
+export function joinTokens(tokens: string[], count: number): string {
+  return tokens.slice(0, Math.max(0, Math.min(count, tokens.length))).join('')
+}

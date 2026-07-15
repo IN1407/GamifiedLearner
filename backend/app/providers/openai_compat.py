@@ -20,6 +20,13 @@ class OpenAICompatProvider(LLMProvider):
     def default_base_url(cls) -> str:
         return "https://api.openai.com/v1"
 
+    @classmethod
+    def fallback_models(cls) -> list[str]:
+        """Known model ids to offer when the provider has no usable GET /models
+        endpoint (some OpenAI-compatible vendors don't implement it, or gate it
+        behind a 404). Empty by default — vendors that need it override this."""
+        return []
+
     def _headers(self) -> dict[str, str]:
         return {"Authorization": f"Bearer {self.api_key}"}
 
@@ -29,10 +36,17 @@ class OpenAICompatProvider(LLMProvider):
                 resp = await client.get(f"{self.base_url}/models", headers=self._headers())
         except httpx.HTTPError as e:
             raise ProviderError("network", f"Could not reach {self.name}: {type(e).__name__}")
+        # Some OpenAI-compatible vendors don't expose /models (404) — fall back
+        # to the known model list instead of failing validation. Auth/rate-limit
+        # errors (401/403/429) still surface, so a bad key is still caught.
+        if resp.status_code == 404 and self.fallback_models():
+            return sorted(self.fallback_models())
         raise_for_provider_status(resp, self.name)
         data = resp.json()
         models = [m.get("id", "") for m in data.get("data", []) if m.get("id")]
         if not models:
+            if self.fallback_models():
+                return sorted(self.fallback_models())
             raise ProviderError("provider_error", f"{self.name} returned an empty model list.")
         return sorted(models)
 
@@ -113,6 +127,80 @@ class MiniMaxProvider(OpenAICompatProvider):
     @classmethod
     def default_base_url(cls) -> str:
         return "https://api.minimax.io/v1"
+
+
+class QwenProvider(OpenAICompatProvider):
+    """Alibaba Qwen via DashScope's OpenAI-compatible mode.
+
+    Uses the international ("intl") endpoint by default; mainland-China users can
+    override base_url to https://dashscope.aliyuncs.com/compatible-mode/v1 in the
+    connect form. DashScope exposes GET /models, so the fallback is only a safety
+    net for regional gating.
+    """
+
+    name = "qwen"
+
+    @classmethod
+    def default_base_url(cls) -> str:
+        return "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+
+    @classmethod
+    def fallback_models(cls) -> list[str]:
+        return ["qwen-max", "qwen-plus", "qwen-turbo", "qwen3-max", "qwq-32b"]
+
+
+class XaiProvider(OpenAICompatProvider):
+    """xAI (Grok) — the "SpaceXAI" family. OpenAI-wire compatible, exposes
+    GET /models and POST /chat/completions at https://api.x.ai/v1."""
+
+    name = "xai"
+
+    @classmethod
+    def default_base_url(cls) -> str:
+        return "https://api.x.ai/v1"
+
+    @classmethod
+    def fallback_models(cls) -> list[str]:
+        return ["grok-4", "grok-3", "grok-3-mini", "grok-3-fast"]
+
+
+class MetaLlamaProvider(OpenAICompatProvider):
+    """Meta's hosted Llama API via its OpenAI-compatibility endpoint at
+    https://api.llama.com/compat/v1. Model discovery isn't guaranteed, so the
+    fallback list carries the current first-party Llama model ids."""
+
+    name = "meta"
+
+    @classmethod
+    def default_base_url(cls) -> str:
+        return "https://api.llama.com/compat/v1"
+
+    @classmethod
+    def fallback_models(cls) -> list[str]:
+        return [
+            "Llama-3.3-70B-Instruct",
+            "Llama-3.3-8B-Instruct",
+            "Llama-4-Maverick-17B-128E-Instruct-FP8",
+            "Llama-4-Scout-17B-16E-Instruct-FP8",
+        ]
+
+
+class SarvamProvider(OpenAICompatProvider):
+    """Sarvam AI (India) — OpenAI-compatible chat at https://api.sarvam.ai/v1
+    with Bearer auth. Model discovery isn't guaranteed, so the fallback carries
+    the current Sarvam model ids."""
+
+    name = "sarvam"
+
+    @classmethod
+    def default_base_url(cls) -> str:
+        return "https://api.sarvam.ai/v1"
+
+    @classmethod
+    def fallback_models(cls) -> list[str]:
+        # sarvam-30b (64K ctx) / sarvam-105b (128K ctx) are recommended for new
+        # workloads; sarvam-m is kept for existing integrations.
+        return ["sarvam-m", "sarvam-30b", "sarvam-105b"]
 
 
 class LlamaCppProvider(OpenAICompatProvider):

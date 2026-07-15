@@ -87,6 +87,10 @@ export function updateMastery(prev: TopicMastery | undefined, evidence: MasteryE
   }
 }
 
+export function gradeLabel(g: GradeLevel): string {
+  return g === 'college' ? 'College' : `Grade ${g.replace('grade', '')}`
+}
+
 export function recommendMathTopic(gradeLevel: GradeLevel, records: Record<string, TopicMastery>) {
   const available = mathTopics.filter((topic) => gradeAllows(gradeLevel, topic))
   const weakPrereq = available.find((topic) => topic.prerequisites.some((id) => (records[id]?.mastery ?? 0.35) < 0.62))
@@ -94,7 +98,7 @@ export function recommendMathTopic(gradeLevel: GradeLevel, records: Record<strin
   const record = records[next.id]
   const reason = record
     ? `${Math.round(record.mastery * 100)}% mastery with ${Math.round(record.confidence * 100)}% confidence; next practice strengthens ${next.aiUses[0]}.`
-    : `Recommended entry point for ${gradeLevel}; this supports ${next.aiUses[0]}.`
+    : `Recommended entry point for ${gradeLabel(gradeLevel)}; this supports ${next.aiUses[0]}.`
   return { topic: next, reason }
 }
 

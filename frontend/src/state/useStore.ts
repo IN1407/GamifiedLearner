@@ -126,7 +126,6 @@ export const useStore = create<StoreState>((set, get) => ({
     for (const a of assessmentList) assessments[a.assessmentId] = a
     const mastery: Record<string, TopicMastery> = {}
     for (const m of masteryList) mastery[m.topicId] = m
-    subscribeSaveState((saveState) => set({ saveState }))
     set({
       hydrated: true,
       profile: profile ?? null,
@@ -281,6 +280,10 @@ export const useStore = create<StoreState>((set, get) => ({
     await get().hydrate()
   },
 }))
+
+// Subscribe the save-state indicator ONCE (not per-hydrate, which leaked a
+// listener on every reloadFromDB).
+subscribeSaveState((saveState) => useStore.setState({ saveState }))
 
 // ---- derived selectors ----
 export function useXp(): number {
