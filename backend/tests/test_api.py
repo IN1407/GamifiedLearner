@@ -12,16 +12,141 @@ def test_health():
     assert client.get("/api/health").json() == {"ok": True}
 
 
-def test_list_providers_includes_all_ten_plus_demo():
+def test_list_providers_includes_all_hosted_plus_demo():
     providers = client.get("/api/providers").json()
     ids = {p["id"] for p in providers}
     expected = {
         "openai", "anthropic", "google", "groq", "openrouter",
-        "deepseek", "zhipu", "moonshot", "minimax", "ollama", "demo",
+        "deepseek", "zhipu", "moonshot", "minimax",
+        "qwen", "xai", "meta", "sarvam", "ollama", "demo",
     }
     assert expected <= ids
     demo = next(p for p in providers if p["id"] == "demo")
     assert demo["needs_key"] is False
+
+
+def test_new_hosted_providers_need_a_key_and_have_labels():
+    providers = client.get("/api/providers").json()
+    by_id = {p["id"]: p for p in providers}
+    expected = {
+        "qwen": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        "xai": "https://api.x.ai/v1",
+        "meta": "https://api.llama.com/compat/v1",
+        "sarvam": "https://api.sarvam.ai/v1",
+    }
+    for pid, base in expected.items():
+        assert pid in by_id, f"{pid} missing from provider list"
+        assert by_id[pid]["needs_key"] is True
+        assert by_id[pid]["default_base_url"] == base
+        assert by_id[pid]["label"], f"{pid} has no display label"
+
+
+def test_new_providers_construct_with_bearer_auth():
+    from app.providers import get_provider
+    from app.providers.openai_compat import (
+        MetaLlamaProvider,
+        QwenProvider,
+        SarvamProvider,
+        XaiProvider,
+    )
+
+    for pid, cls in [
+        ("qwen", QwenProvider),
+        ("xai", XaiProvider),
+        ("meta", MetaLlamaProvider),
+        ("sarvam", SarvamProvider),
+    ]:
+        prov = get_provider(pid, "sk-test", None)
+        assert isinstance(prov, cls)
+        assert prov._headers() == {"Authorization": "Bearer sk-test"}
+        # Each hosted provider ships a non-empty fallback model list as a safety
+        # net for vendors that gate or omit GET /models.
+        assert cls.fallback_models(), f"{pid} has no fallback models"
+
+
+def test_new_providers_require_a_key():
+    from app.providers import ProviderError, get_provider
+
+    for pid in ("qwen", "xai", "meta", "sarvam"):
+        with pytest.raises(ProviderError) as exc:
+            get_provider(pid, None, None)
+        assert exc.value.error_type == "invalid_key"
+
+
+def _mock_client(handler):
+    """Return a no-arg factory yielding an AsyncClient backed by a mock handler."""
+    import httpx
+
+    def factory():
+        return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    return factory
+
+
+@pytest.mark.asyncio
+async def test_list_models_falls_back_when_models_endpoint_is_404():
+    """A provider that gates/omits GET /models (404) still validates: we serve
+    its known fallback list instead of failing. Auth errors are NOT masked."""
+    import httpx
+
+    from app.providers.openai_compat import SarvamProvider
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"error": {"message": "no such route"}})
+
+    prov = SarvamProvider(api_key="sk-test")
+    prov._client = _mock_client(handler)  # type: ignore[method-assign]
+    models = await prov.list_models()
+    assert models == sorted(SarvamProvider.fallback_models())
+
+
+@pytest.mark.asyncio
+async def test_list_models_falls_back_when_models_endpoint_is_empty():
+    import httpx
+
+    from app.providers.openai_compat import MetaLlamaProvider
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": []})
+
+    prov = MetaLlamaProvider(api_key="sk-test")
+    prov._client = _mock_client(handler)  # type: ignore[method-assign]
+    models = await prov.list_models()
+    assert models == sorted(MetaLlamaProvider.fallback_models())
+
+
+@pytest.mark.asyncio
+async def test_list_models_uses_live_list_when_present():
+    import httpx
+
+    from app.providers.openai_compat import XaiProvider
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": [{"id": "grok-4"}, {"id": "grok-3"}]})
+
+    prov = XaiProvider(api_key="sk-test")
+    prov._client = _mock_client(handler)  # type: ignore[method-assign]
+    models = await prov.list_models()
+    assert models == ["grok-3", "grok-4"]
+
+
+@pytest.mark.asyncio
+async def test_list_models_does_not_mask_auth_errors():
+    """A 401 must still surface as invalid_key even though a fallback exists —
+    otherwise a bad key would look valid."""
+    import httpx
+
+    from app.providers import ProviderError
+    from app.providers.openai_compat import QwenProvider
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, json={"error": {"message": "bad key"}})
+
+    prov = QwenProvider(api_key="wrong")
+    prov._client = _mock_client(handler)  # type: ignore[method-assign]
+    with pytest.raises(ProviderError) as exc:
+        await prov.list_models()
+    assert exc.value.error_type == "invalid_key"
 
 
 def test_local_providers_are_keyless():

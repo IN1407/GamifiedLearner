@@ -59,7 +59,7 @@ Serve `frontend/dist` as static files behind the same host/origin as the backend
 
 ### AI provider support
 
-OpenAI, Anthropic, Google (Gemini), Groq, OpenRouter, DeepSeek, Zhipu/Z.ai, Moonshot (Kimi), MiniMax, two **local, no-key** options — **Ollama** (native API) and **llama.cpp** (its OpenAI-compatible server, run via `python -m llama_cpp.server --model your-model.gguf`) — and a built-in Demo provider. After you enter a key it's validated by calling the provider's live `/models` endpoint and the dropdown is populated from the response — no hardcoded model lists to go stale. Local providers need no key and surface an actionable error if their server isn't running.
+OpenAI, Anthropic, Google (Gemini), Groq, OpenRouter, DeepSeek, Zhipu/Z.ai, Moonshot (Kimi), MiniMax, **Alibaba Qwen** (DashScope), **xAI (Grok)**, **Meta Llama**, **Sarvam AI**, two **local, no-key** options — **Ollama** (native API) and **llama.cpp** (its OpenAI-compatible server, run via `python -m llama_cpp.server --model your-model.gguf`) — and a built-in Demo provider. After you enter a key it's validated by calling the provider's live `/models` endpoint and the dropdown is populated from the response — no hardcoded model lists to go stale. For the few OpenAI-compatible vendors that don't expose `/models` (or gate it), a small built-in fallback list of current model ids keeps validation working, while auth/rate-limit errors are never masked. Local providers need no key and surface an actionable error if their server isn't running.
 
 > **Deliberate deviation from the brief's "use each provider's official SDK":** all adapters speak raw HTTP via `httpx` instead of ten vendor SDKs. Ten SDKs would mean ten dependency trees, ten error taxonomies, and ten retry behaviors to reconcile; a thin per-vendor HTTP adapter keeps error handling uniform and the surface small, and most of these vendors are OpenAI-wire-compatible anyway (so they share one adapter). The `LLMProvider` interface requirement is still honored.
 
@@ -82,7 +82,7 @@ All three prompts live in `backend/app/prompts.py` and are intentionally separat
 
 ```bash
 # Backend: unit + API + static syntax verification (incl. proof learner code is never executed)
-cd backend && .venv/bin/python -m pytest tests/ -q      # 82 tests
+cd backend && .venv/bin/python -m pytest tests/ -q      # 89 tests
 
 # Frontend: gamification math, content integrity, share-card rendering, API client
 cd frontend && npm test                                  # frontend unit/component tests

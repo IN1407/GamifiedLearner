@@ -67,14 +67,26 @@ print(resp.text)
 ~~~
 
 ## OpenAI-wire-compatible providers
-**Groq** (\`pip install groq\`), **xAI/Grok** (\`https://api.x.ai/v1\`), and
-**Z.AI/Zhipu** all speak the OpenAI chat-completions shape. The easiest path is
-often the \`openai\` client pointed at their base URL:
+A whole cluster of providers speak the OpenAI chat-completions shape, so one
+client reaches all of them — just change \`base_url\`:
+
+| Provider | Base URL |
+|---|---|
+| **Groq** | \`https://api.groq.com/openai/v1\` |
+| **xAI / Grok** | \`https://api.x.ai/v1\` |
+| **Z.AI / Zhipu** | \`https://api.z.ai/api/paas/v4\` |
+| **Alibaba Qwen** (DashScope) | \`https://dashscope-intl.aliyuncs.com/compatible-mode/v1\` |
+| **Meta Llama API** | \`https://api.llama.com/compat/v1\` |
+| **Sarvam AI** | \`https://api.sarvam.ai/v1\` |
+
+The easiest path is often the \`openai\` client pointed at their base URL:
 ~~~python
 client = OpenAI(base_url="https://api.x.ai/v1", api_key=os.environ["XAI_API_KEY"])
 ~~~
-(Groq and Z.AI also publish their own SDKs — \`groq\`, \`zai-sdk\` — but the
-OpenAI-compatible endpoint means you rarely need them.)
+(Several also publish their own SDKs — \`groq\`, \`zai-sdk\`, \`dashscope\` — but the
+OpenAI-compatible endpoint means you rarely need them. One caveat: not every
+compatible endpoint implements \`GET /models\`, so keep a small fallback list of
+known model ids rather than assuming discovery always works.)
 
 ## Robustness — the same everywhere
 - **Keys** come from environment variables, never source code or git.
@@ -136,6 +148,11 @@ output, and vision vary by provider and model. Don't assume parity — check.
         {
           type: 'md',
           md: 'When you **stream**, the model sends the answer in pieces. You accumulate those pieces so that if the user cancels mid-way, you still have the partial text. Practice that accumulation below — no SDK needed, we pass you the deltas.',
+        },
+        {
+          type: 'viz',
+          viz: 'streaming',
+          caption: 'Play, pause, or cancel — cancelling keeps the tokens already streamed.',
         },
         {
           type: 'exercise',
@@ -240,6 +257,11 @@ actually hold.
 Local models are genuinely capable now, but a small local model will not match a
 frontier hosted model on hard reasoning. Match the tool to the task.
 `,
+        },
+        {
+          type: 'viz',
+          viz: 'inferencePath',
+          caption: 'Toggle local vs hosted to compare the request path and its privacy/cost/latency trade-offs.',
         },
         {
           type: 'quiz',

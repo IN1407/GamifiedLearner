@@ -40,7 +40,17 @@ ideas whole.
 
 A common **failure case**: chunks that are too large retrieve irrelevant text;
 too small and they lose context. Overlap of zero drops boundary-spanning facts.
+
+The whole reason chunking and retrieval matter is the **context window**: the
+system prompt, chat history, and retrieved passages all share one fixed token
+budget, and whatever the prompt fills, the response can't use. Retrieve too much
+and you overflow it.
 `,
+        },
+        {
+          type: 'viz',
+          viz: 'contextWindow',
+          caption: 'Drag the sliders: prompt tokens and retrieved context compete for one fixed window.',
         },
         {
           type: 'viz',

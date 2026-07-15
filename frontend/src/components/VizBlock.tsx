@@ -7,6 +7,9 @@ const SoftmaxViz = lazy(() => import('./viz/SoftmaxViz'))
 const TokenizerViz = lazy(() => import('./viz/TokenizerViz'))
 const SimilarityViz = lazy(() => import('./viz/SimilarityViz'))
 const ChunkingViz = lazy(() => import('./viz/ChunkingViz'))
+const ContextWindowViz = lazy(() => import('./viz/ContextWindowViz'))
+const StreamingViz = lazy(() => import('./viz/StreamingViz'))
+const InferencePathViz = lazy(() => import('./viz/InferencePathViz'))
 
 export default function VizBlock({ viz, caption }: { viz: VizKind; caption?: string }) {
   return (
@@ -22,6 +25,9 @@ export default function VizBlock({ viz, caption }: { viz: VizKind; caption?: str
         {viz === 'tokenizer' && <TokenizerViz />}
         {viz === 'similarity' && <SimilarityViz />}
         {viz === 'chunking' && <ChunkingViz />}
+        {viz === 'contextWindow' && <ContextWindowViz />}
+        {viz === 'streaming' && <StreamingViz />}
+        {viz === 'inferencePath' && <InferencePathViz />}
       </Suspense>
       {caption && <figcaption className="mt-2 text-center text-xs text-slate-400">{caption}</figcaption>}
     </figure>
